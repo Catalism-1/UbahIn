@@ -10,7 +10,7 @@ from ubahin.utils import app_data_dir
 
 class HistoryService:
     def __init__(self, database_path: Path | None = None, retention_limit: int = 500) -> None:
-        self.database_path = database_path or app_data_dir() / "history.sqlite3"
+        self.database_path = database_path or app_data_dir() / "history" / "history.sqlite3"
         self.retention_limit = retention_limit
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()

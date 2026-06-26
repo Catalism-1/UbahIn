@@ -15,7 +15,7 @@ from .utils import human_size
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ubahin",
-        description="Ubahin — PDF ke JPG lokal tanpa upload internet.",
+        description="Ubahin - PDF ke JPG lokal tanpa upload internet.",
     )
     parser.add_argument("inputs", nargs="+", help="Satu atau beberapa file PDF.")
     parser.add_argument("-o", "--output", required=True, help="Folder hasil.")
@@ -38,9 +38,9 @@ def _print_event(event: AppEvent) -> None:
         )
         print(text, end="", flush=True)
     elif event.kind == "file_completed":
-        print(f"\n✓ Selesai: {event.payload['filename']} ({event.payload['output_count']} JPG)")
+        print(f"\nSelesai: {event.payload['filename']} ({event.payload['output_count']} JPG)")
     elif event.kind == "file_failed":
-        print(f"\n✗ Gagal: {event.payload['filename']} — {event.payload['error']}", file=sys.stderr)
+        print(f"\nGagal: {event.payload['filename']} - {event.payload['error']}", file=sys.stderr)
     elif event.kind == "job_started":
         print(f"Mulai mengubah {event.payload['total_files']} PDF ({event.payload['total_pages']} halaman).")
 
@@ -82,3 +82,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"ZIP hasil: {final_job.zip_path} ({human_size(final_job.zip_path.stat().st_size)})")
 
     return 0 if final_job.status.value in {"completed", "completed_with_errors", "completed_with_warnings"} else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -17,28 +17,52 @@ RESERVED_WINDOWS_NAMES = {
 }
 
 
-def app_data_dir() -> Path:
+def is_frozen_app() -> bool:
+    return bool(getattr(sys, "frozen", False))
+
+
+def _ensure_writable_directory(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    probe = path / ".write_test.tmp"
+    probe.write_bytes(b"ok")
+    probe.unlink(missing_ok=True)
+    return path
+
+
+def get_app_data_dir() -> Path:
     if sys.platform == "win32":
         candidates = [
-            Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / "Ubahin",
             Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "Ubahin",
+            Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / "Ubahin",
             Path(tempfile.gettempdir()) / "Ubahin",
         ]
     else:
         candidates = [
+            Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "Ubahin",
             Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "Ubahin",
             Path(tempfile.gettempdir()) / "Ubahin",
         ]
     for path in candidates:
         try:
-            path.mkdir(parents=True, exist_ok=True)
-            probe = path / ".write_test.tmp"
-            probe.write_bytes(b"ok")
-            probe.unlink(missing_ok=True)
-            return path
+            return _ensure_writable_directory(path)
         except OSError:
             continue
     raise PermissionError("Tidak ada folder data aplikasi yang dapat ditulis.")
+
+
+def app_data_dir() -> Path:
+    return get_app_data_dir()
+
+
+def get_log_dir() -> Path:
+    return _ensure_writable_directory(get_app_data_dir() / "logs")
+
+
+def get_resource_path(relative_path: str | Path = "") -> Path:
+    relative = Path(relative_path)
+    if is_frozen_app() and hasattr(sys, "_MEIPASS"):
+        return Path(getattr(sys, "_MEIPASS")) / relative
+    return Path(__file__).resolve().parents[3] / relative
 
 
 def sanitize_filename(name: str, fallback: str = "file") -> str:

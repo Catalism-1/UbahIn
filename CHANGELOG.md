@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1
+
+- Mengubah entry point Windows menjadi launcher desktop sementara.
+- Menambahkan self-check internal untuk portable dan installer.
+- Menambahkan startup diagnostics ke `%LOCALAPPDATA%\Ubahin\logs\startup.log`.
+- Menstabilkan build debug, build portable, installer silent-test, dan diagnostic report.
+- Menjaga native Rust tetap opsional dengan fallback Python.
+
 ## 0.2.0
 
 - Menambahkan resource governor adaptif untuk menjaga stabilitas CPU, RAM, dan disk.

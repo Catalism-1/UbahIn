@@ -4,11 +4,11 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from .path_utils import app_data_dir
+from .path_utils import get_log_dir
 
 
 def setup_logging(log_dir: Path | None = None) -> logging.Logger:
-    directory = log_dir or app_data_dir() / "logs"
+    directory = log_dir or get_log_dir()
     directory.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger("ubahin")
     logger.setLevel(logging.INFO)

@@ -13,7 +13,8 @@ class HistoryStore:
     """Riwayat lokal SQLite agar GUI bisa menampilkan proses terdahulu."""
 
     def __init__(self, database_path: Path | None = None) -> None:
-        self.database_path = database_path or app_data_dir() / "history.sqlite3"
+        self.database_path = database_path or app_data_dir() / "history" / "history.sqlite3"
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:

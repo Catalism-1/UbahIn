@@ -5,4 +5,3 @@ psutil>=5.9
 PyInstaller>=6.0
 pytest>=8.0
 ruff>=0.6
-maturin>=1.7

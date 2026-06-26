@@ -24,7 +24,7 @@ class AppSettings:
 
 class SettingsStore:
     def __init__(self, path: Path | None = None) -> None:
-        self.path = path or app_data_dir() / "settings.json"
+        self.path = path or app_data_dir() / "settings" / "settings.json"
 
     def load(self) -> AppSettings:
         if not self.path.exists():

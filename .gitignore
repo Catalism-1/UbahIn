@@ -4,6 +4,7 @@ __pycache__/
 .ruff_cache/
 build/
 dist/
+dist_debug/
 target/
 native/target/
 *.log
@@ -16,6 +17,11 @@ output/
 outputs/
 tmp/
 temp/
+test_output/
+installer_test/
+UbahinInstallTest/
+AppData/
+LocalAppData/
 *.tmp
 *.spec
 *.pyd

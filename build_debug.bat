@@ -2,24 +2,20 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 set "APP_NAME=Ubahin"
-set "DIST_ROOT=dist"
+set "DIST_ROOT=dist_debug"
 set "DIST_PATH=%DIST_ROOT%\%APP_NAME%"
-set "BUILD_LOG=%DIST_ROOT%\portable_build_output.txt"
+set "BUILD_LOG=%DIST_ROOT%\debug_build_output.txt"
 
 call :prepare_python
 if errorlevel 1 exit /b 1
 
 if not exist "%DIST_ROOT%" mkdir "%DIST_ROOT%"
-echo Building %APP_NAME% portable release... > "%BUILD_LOG%"
+echo Building %APP_NAME% debug with console... > "%BUILD_LOG%"
 
 "%PYTHON_EXE%" -c "import fitz, PIL, pypdf, PyInstaller" >nul 2>nul
 if errorlevel 1 (
-  echo Installing dependencies into local virtual environment...
   "%PYTHON_EXE%" -m pip install -r requirements.txt >> "%BUILD_LOG%" 2>&1
-  if errorlevel 1 (
-    echo Gagal install dependency. Lihat %BUILD_LOG%
-    exit /b 1
-  )
+  if errorlevel 1 exit /b 1
 ) else (
   echo Dependencies already available. >> "%BUILD_LOG%"
 )
@@ -29,15 +25,9 @@ if exist "%DIST_PATH%" rmdir /s /q "%DIST_PATH%"
 if exist Ubahin.spec del /q Ubahin.spec
 
 set "ICON_ARGS="
-if exist "assets\app_icon.ico" (
-  set "ICON_ARGS=--icon assets\app_icon.ico"
-) else (
-  echo WARNING: assets\app_icon.ico tidak ditemukan. Build dilanjutkan tanpa icon.
-)
-
+if exist "assets\app_icon.ico" set "ICON_ARGS=--icon assets\app_icon.ico"
 set "DATA_ARGS="
 if exist assets set "DATA_ARGS=--add-data assets;assets"
-
 set "NATIVE_ARGS="
 "%PYTHON_EXE%" -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('ubahin_native') else 1)" >nul 2>nul
 if not errorlevel 1 set "NATIVE_ARGS=--hidden-import ubahin_native"
@@ -46,7 +36,7 @@ if not errorlevel 1 set "NATIVE_ARGS=--hidden-import ubahin_native"
   --noconfirm ^
   --clean ^
   --onedir ^
-  --noconsole ^
+  --console ^
   --name "%APP_NAME%" ^
   --distpath "%DIST_ROOT%" ^
   --paths src ^
@@ -64,30 +54,22 @@ if not errorlevel 1 set "NATIVE_ARGS=--hidden-import ubahin_native"
   --exclude-module lxml ^
   main.py >> "%BUILD_LOG%" 2>&1
 if errorlevel 1 (
-  echo Build portable gagal. Lihat %BUILD_LOG%
+  echo Build debug gagal. Lihat %BUILD_LOG%
   exit /b 1
-)
-
-if exist native\ubahin_native\target (
-  if exist "%DIST_PATH%\_internal" (
-    for /r native\ubahin_native\target %%F in (ubahin_native*.pyd) do copy "%%F" "%DIST_PATH%\_internal\" >nul
-  )
 )
 
 if exist README.md copy README.md "%DIST_PATH%\README.md" >nul
 if exist VERSION copy VERSION "%DIST_PATH%\VERSION" >nul
 if exist CHANGELOG.md copy CHANGELOG.md "%DIST_PATH%\CHANGELOG.md" >nul
 
-echo Running portable self-check...
 "%DIST_PATH%\%APP_NAME%.exe" --self-check --silent > "%DIST_PATH%\self_check_output.txt" 2>&1
 if errorlevel 1 (
-  echo Portable self-check gagal.
+  echo Debug self-check gagal.
   type "%DIST_PATH%\self_check_output.txt"
   exit /b 1
 )
 
-echo Portable build selesai: %DIST_PATH%\%APP_NAME%.exe
-echo Self-check output: %DIST_PATH%\self_check_output.txt
+echo Debug build selesai: %DIST_PATH%\%APP_NAME%.exe
 exit /b 0
 
 :prepare_python
@@ -113,22 +95,12 @@ if not defined PYTHON_EXE (
     exit /b 1
   )
   !PYTHON_BOOTSTRAP! -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"
-  if errorlevel 1 (
-    echo Python minimal 3.11 diperlukan.
-    exit /b 1
-  )
-  echo Membuat virtual environment lokal .venv...
+  if errorlevel 1 exit /b 1
   !PYTHON_BOOTSTRAP! -m venv --system-site-packages .venv
-  if errorlevel 1 (
-    echo Gagal membuat .venv.
-    exit /b 1
-  )
+  if errorlevel 1 exit /b 1
   set "PYTHON_EXE=%CD%\.venv\Scripts\python.exe"
 )
 
 "%PYTHON_EXE%" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"
-if errorlevel 1 (
-  echo Python di .venv harus versi 3.11+.
-  exit /b 1
-)
+if errorlevel 1 exit /b 1
 exit /b 0

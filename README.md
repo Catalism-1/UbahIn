@@ -1,129 +1,155 @@
 # Ubahin
 
-Ubahin adalah backend converter file lokal/offline untuk Windows. Fokusnya adalah proses konversi yang stabil, antrean pekerjaan yang aman, dan paket aplikasi portable/installer yang bisa dijalankan pengguna akhir tanpa menginstal Python secara manual.
+Ubahin adalah backend converter file lokal/offline untuk Windows. Release candidate lokal `0.1.1` fokus pada hal paling dasar untuk distribusi: aplikasi bisa di-build, diinstal, dibuka, dan diuji di laptop Windows 10/11 64-bit.
 
-Semua proses berjalan lokal. Tidak ada upload file, API cloud, database eksternal, atau koneksi internet yang dibutuhkan saat aplikasi dipakai.
+Tahap ini belum memasang GUI final Claude. `Ubahin.exe` sekarang membuka desktop shell sementara untuk validasi installer dan startup.
 
-## Fitur Utama
+## Yang Ada Saat Ini
 
-- PDF ke JPG sampai 50 PDF per antrean.
-- Render PDF satu per satu dengan PyMuPDF agar RAM tidak melonjak.
-- DPI output: 120, 150, 200, dan 300.
-- Kualitas JPG: 70, 80, 90, dan 95.
-- Mode performa: hemat RAM, seimbang, dan cepat.
-- Background worker, cancellation token, dan status job yang jelas.
-- Jika satu file gagal, file berikutnya tetap diproses.
-- Validasi PDF rusak, PDF terkunci, file tidak terbaca, output tidak bisa ditulis, dan estimasi ruang disk.
-- Nama file aman untuk Windows dan anti-tertimpa dengan suffix otomatis.
-- Atomic write untuk mengurangi risiko file hasil setengah jadi.
-- Log proses dan error ke `conversion_log.txt`.
-- ZIP hasil konversi.
-- Riwayat lokal SQLite dengan migrasi schema dan retention.
-- Logging aplikasi di folder data lokal pengguna.
-- Optional native module Rust/PyO3 dengan fallback Python otomatis.
+- Desktop launcher sementara berbasis Tkinter.
+- CLI backend lama tetap tersedia melalui `ubahin.cli`.
+- Self-check internal: `Ubahin.exe --self-check --silent`.
+- Startup diagnostics ke `%LOCALAPPDATA%\Ubahin\logs\startup.log`.
+- Data pengguna di `%LOCALAPPDATA%\Ubahin\`.
+- Build debug console di `dist_debug\Ubahin\Ubahin.exe`.
+- Build portable release di `dist\Ubahin\Ubahin.exe`.
+- Installer Inno Setup di `dist\installer\Ubahin_Setup.exe`.
+- Native Rust tetap opsional. Jika tidak ada, aplikasi memakai fallback Python.
 
-## Struktur Project
+## Struktur Penting
 
 ```text
-Ubahin/
-├── main.py
-├── src/ubahin/
-│   ├── core/
-│   ├── services/
-│   ├── ui_bridge/
-│   ├── utils/
-│   └── native_bridge.py
-├── native/
-│   └── ubahin_native/
-├── tests/
-├── scripts/
-├── assets/
-├── .github/workflows/
-├── build_portable.bat
-├── build_installer.bat
-├── installer_script.iss
-├── requirements.txt
-└── pyproject.toml
+main.py                         entry point desktop untuk EXE
+src/ubahin/cli.py               CLI backend lama
+src/ubahin/desktop/app.py       desktop shell sementara
+src/ubahin/desktop/self_check.py self-check internal
+src/ubahin/desktop/startup.py   startup diagnostics
+src/ubahin/desktop/diagnostics.py diagnostic report
+build_debug.bat                 build EXE console
+build_portable.bat              build EXE release portable
+build_installer.bat             build installer dan silent install test
+diagnose_ubahin.bat             laporan kondisi sistem
+run_dev.bat                     menjalankan desktop shell dari source
 ```
 
-## Menjalankan Source Code
-
-Gunakan Python 3.11 atau lebih baru.
+## Menjalankan dari Source
 
 ```bat
 cd "D:\Projek Pribadi Kode\convert_pdf\Ubahin_backend_foundation\Ubahin"
-py -m venv .venv
-.venv\Scripts\activate
-py -m pip install -r requirements.txt
-py main.py "C:\PDF\contoh.pdf" -o "C:\Hasil Ubahin" --preset high --zip
+build_portable.bat
+run_dev.bat
 ```
 
-## Membuat EXE Portable
+`build_portable.bat` akan membuat `.venv` lokal bila belum ada dan menginstal dependency ke virtual environment tersebut.
 
-Jalankan:
+Untuk menjalankan CLI backend lama:
+
+```bat
+set PYTHONPATH=%CD%\src
+.venv\Scripts\python.exe -m ubahin.cli "C:\PDF\contoh.pdf" -o "C:\Hasil Ubahin" --preset high
+```
+
+## Self-Check
+
+Dari source:
+
+```bat
+set PYTHONPATH=%CD%\src
+.venv\Scripts\python.exe main.py --self-check --silent
+```
+
+Dari portable atau hasil install:
+
+```bat
+dist\Ubahin\Ubahin.exe --self-check --silent
+```
+
+Self-check memeriksa app data, folder log, SQLite history, PyMuPDF, Pillow, pypdf, dan status native module opsional.
+
+## Build Debug
+
+```bat
+build_debug.bat
+```
+
+Hasil:
+
+```text
+dist_debug\Ubahin\Ubahin.exe
+```
+
+Mode debug memakai console supaya error startup terlihat langsung.
+
+## Build Portable
 
 ```bat
 build_portable.bat
 ```
 
-Hasil build ada di:
+Hasil:
 
 ```text
 dist\Ubahin\Ubahin.exe
+dist\Ubahin\self_check_output.txt
 ```
 
-Folder `dist\Ubahin` adalah versi portable. Folder ini bisa disalin ke laptop Windows lain dan dijalankan tanpa instalasi Python.
+Build dianggap gagal jika self-check portable gagal.
 
-## Membuat Installer
+## Build Installer
 
-Install Inno Setup 6 terlebih dahulu, lalu jalankan:
+Butuh Inno Setup 6.
 
 ```bat
 build_installer.bat
 ```
 
-Hasil installer ada di:
+Script ini akan:
+
+- membangun portable release,
+- membuat installer,
+- silent install ke `%TEMP%\UbahinInstallTest`,
+- menjalankan `Ubahin.exe --self-check --silent`,
+- uninstall test installation.
+
+Hasil:
 
 ```text
 dist\installer\Ubahin_Setup.exe
 ```
 
-Installer akan membuat shortcut Desktop dan Start Menu dengan nama aplikasi `Ubahin`.
+Installer default ke:
 
-## Native Rust Opsional
-
-Folder `native/ubahin_native` berisi modul Rust/PyO3 opsional untuk akselerasi helper seperti hashing, sanitasi path, snapshot sistem, dan estimasi ukuran. Jika modul native tidak tersedia, aplikasi otomatis memakai fallback Python dari `src/ubahin/native_bridge.py`.
-
-Build native lokal membutuhkan Rust toolchain dan Maturin:
-
-```bat
-py -m pip install maturin
-cd native\ubahin_native
-maturin develop --release
+```text
+%LOCALAPPDATA%\Programs\Ubahin
 ```
 
-Workflow GitHub Actions juga menyiapkan Rust dan membangun wheel native di Windows runner.
-
-## Quality Gate
-
-Perintah yang dipakai untuk pengecekan lokal:
+## Diagnostic Report
 
 ```bat
-py -m ruff check src tests
-py -m pytest
-py scripts\benchmark_smoke.py
-dist\Ubahin\Ubahin.exe --help
+diagnose_ubahin.bat
 ```
 
-## CI dan Release
+Output disimpan ke:
 
-Workflow tersedia di:
+```text
+%LOCALAPPDATA%\Ubahin\logs\diagnostic_report.txt
+```
 
-- `.github/workflows/ci.yml` untuk lint, test, dan smoke import.
-- `.github/workflows/build-windows.yml` untuk build Windows, artefak portable, installer, dan release saat tag `v*`.
+## Jika Aplikasi Gagal Dibuka
 
-## Catatan Keterbatasan
+Cek log:
 
-- Modul native Rust bersifat opsional. Tanpa Rust, aplikasi tetap berjalan dengan fallback Python.
-- PDF ke Word, Word ke PDF kompleks, dan OCR belum diimplementasikan agar aplikasi tidak memberi hasil yang menyesatkan.
-- Build lokal installer membutuhkan Inno Setup 6 tersedia di PATH atau lokasi instalasi standar.
+```text
+%LOCALAPPDATA%\Ubahin\logs\startup.log
+%LOCALAPPDATA%\Ubahin\logs\self_check.log
+%LOCALAPPDATA%\Ubahin\logs\diagnostic_report.txt
+```
+
+Jika dijalankan dari release `--noconsole`, aplikasi akan menampilkan dialog sederhana dan menyimpan traceback lengkap ke `startup.log`.
+
+## Catatan
+
+- GUI final Claude belum digabungkan.
+- Rust/Cargo/Maturin bukan syarat build installer pertama.
+- Native acceleration aktif hanya jika module `ubahin_native` tersedia dan lolos import.
+- Semua proses aplikasi berjalan lokal/offline.

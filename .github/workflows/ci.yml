@@ -21,4 +21,6 @@ jobs:
       - name: Test
         run: python -m pytest
       - name: Smoke import
+        env:
+          PYTHONPATH: src
         run: python -c "from ubahin.core import JobManager; from ubahin.native_bridge import native_status; print(native_status()); print(JobManager)"
