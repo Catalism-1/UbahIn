@@ -60,6 +60,7 @@ class DesktopBridge:
         self._selected_files: dict[str, dict[str, Any]] = {}
         self._last_output_folder: Path | None = None
         self._jobs_meta: dict[str, dict[str, Any]] = {}
+        self._is_maximized = False
         self._lock = threading.RLock()
         self._wire_job_events()
 
@@ -230,7 +231,12 @@ class DesktopBridge:
             if action == "minimize":
                 self._window.minimize()
             elif action == "maximize":
-                self._window.toggle_fullscreen() if False else self._window.maximize()
+                if self._is_maximized and hasattr(self._window, "restore"):
+                    self._window.restore()
+                    self._is_maximized = False
+                else:
+                    self._window.maximize()
+                    self._is_maximized = True
             elif action == "close":
                 self._window.destroy()
             else:

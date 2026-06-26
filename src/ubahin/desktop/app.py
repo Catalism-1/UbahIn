@@ -1,4 +1,4 @@
-"""Desktop entry point — pywebview shell that hosts the HTML/CSS/JS UI."""
+"""Desktop entry point for the native pywebview-hosted Ubahin UI."""
 from __future__ import annotations
 
 import argparse
@@ -8,28 +8,32 @@ from pathlib import Path
 
 from ubahin.desktop.self_check import main as self_check_main
 from ubahin.desktop.startup import show_startup_error_dialog, write_startup_exception
+from ubahin.desktop.window_manager import create_main_window
 from ubahin.utils import get_resource_path, setup_logging
 
 
 def _web_root() -> Path:
-    """Locate the bundled web/ directory both in dev and frozen builds."""
+    """Locate the bundled web directory in source and frozen builds."""
     candidates = [
         Path(__file__).resolve().parent / "web",
         get_resource_path("src/ubahin/desktop/web"),
     ]
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        candidates.append(Path(sys._MEIPASS) / "ubahin" / "desktop" / "web")  # type: ignore[attr-defined]
-        candidates.append(Path(sys._MEIPASS) / "src" / "ubahin" / "desktop" / "web")  # type: ignore[attr-defined]
+        bundle_root = Path(sys._MEIPASS)  # type: ignore[attr-defined]
+        candidates.extend(
+            [
+                bundle_root / "ubahin" / "desktop" / "web",
+                bundle_root / "src" / "ubahin" / "desktop" / "web",
+            ]
+        )
     for candidate in candidates:
         if candidate.exists() and (candidate / "index.html").exists():
             return candidate
-    raise FileNotFoundError(
-        "Folder web Ubahin tidak ditemukan. Build mungkin tidak menyertakan asset UI."
-    )
+    raise FileNotFoundError("Folder web Ubahin tidak ditemukan. Build mungkin tidak menyertakan asset UI.")
 
 
 def launch_desktop_shell() -> int:
-    """Start the pywebview window. Returns process exit code."""
+    """Start Ubahin as a native desktop window with a bundled local UI."""
     setup_logging()
     try:
         import webview
@@ -40,36 +44,23 @@ def launch_desktop_shell() -> int:
 
     from ubahin.desktop.bridge import DesktopBridge
 
-    web_root = _web_root()
-    index_html = web_root / "index.html"
-    bridge = DesktopBridge()
-
-    window = webview.create_window(
-        title="Ubahin",
-        url=str(index_html),
-        js_api=bridge,
-        width=1200,
-        height=780,
-        min_size=(1024, 640),
-        background_color="#F8F7F4",
-        text_select=False,
-    )
-    bridge.attach_window(window)
-
-    def _on_loaded() -> None:  # pragma: no cover - GUI hook
-        pass
-
+    bridge: DesktopBridge | None = None
     try:
-        window.events.loaded += _on_loaded
-    except Exception:
-        pass
-
-    debug = os.environ.get("UBAHIN_DEBUG_WEBVIEW") == "1"
-    try:
-        webview.start(debug=debug)
+        index_html = _web_root() / "index.html"
+        bridge = DesktopBridge()
+        window = create_main_window(webview, index_html, bridge)
+        if window is None:
+            raise RuntimeError("PyWebView gagal membuat window utama Ubahin.")
+        bridge.attach_window(window)
+        webview.start(debug=os.environ.get("UBAHIN_DEBUG_WEBVIEW") == "1")
         return 0
+    except Exception as exc:
+        log_path = write_startup_exception(exc)
+        show_startup_error_dialog(log_path)
+        return 1
     finally:
-        bridge.detach_window()
+        if bridge is not None:
+            bridge.detach_window()
 
 
 def _main(argv: list[str] | None = None) -> int:

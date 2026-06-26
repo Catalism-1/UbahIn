@@ -43,16 +43,30 @@ def _write_fallback_startup_error() -> Path:
 def _show_fallback_error(log_path: Path) -> None:
     try:
         import tkinter as tk
-        from tkinter import messagebox
+        from tkinter import ttk
 
         root = tk.Tk()
-        root.withdraw()
-        messagebox.showerror(
-            "Ubahin tidak dapat dibuka",
-            "Ubahin tidak dapat dibuka. Detail teknis telah disimpan di folder log.\n\n"
-            f"Lokasi log:\n{log_path}",
-        )
-        root.destroy()
+        root.title("Ubahin - Diagnostik")
+        root.geometry("520x260")
+        root.minsize(480, 240)
+        root.resizable(False, False)
+
+        frame = ttk.Frame(root, padding=22)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="GUI Ubahin tidak dapat dimuat", font=("Segoe UI", 13, "bold")).pack(anchor="w")
+        ttk.Label(
+            frame,
+            text="Ubahin gagal membuka tampilan utama. Detail teknis telah disimpan di startup.log.",
+            wraplength=460,
+            justify="left",
+        ).pack(anchor="w", pady=(12, 8))
+        ttk.Label(frame, text=str(log_path), wraplength=460, foreground="#555555").pack(anchor="w", pady=(0, 18))
+
+        buttons = ttk.Frame(frame)
+        buttons.pack(anchor="e", fill="x")
+        ttk.Button(buttons, text="Buka folder log", command=lambda: os.startfile(log_path.parent)).pack(side="right", padx=(8, 0))
+        ttk.Button(buttons, text="Tutup", command=root.destroy).pack(side="right")
+        root.mainloop()
     except Exception:
         pass
 
