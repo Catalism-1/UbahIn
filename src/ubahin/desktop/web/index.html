@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ubahin</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="app-shell" id="app">
+
+    <div class="title-bar">
+      <div class="title-bar-left">
+        <div class="title-bar-logo">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7 9 7"></path><path d="M4 7 7 4"></path><path d="M4 7 7 10"></path><path d="M20 17 15 17"></path><path d="M20 17 17 14"></path><path d="M20 17 17 20"></path></svg>
+        </div>
+        <span class="title-bar-name">Ubahin</span>
+      </div>
+      <div class="title-bar-caps">
+        <button class="cap-btn" title="Minimalkan" data-window-action="minimize">
+          <svg width="11" height="11" viewBox="0 0 12 12"><line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" stroke-width="1.3"></line></svg>
+        </button>
+        <button class="cap-btn" title="Perbesar" data-window-action="maximize">
+          <svg width="10" height="10" viewBox="0 0 12 12"><rect x="2.2" y="2.2" width="7.6" height="7.6" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.3"></rect></svg>
+        </button>
+        <button class="cap-btn cap-close" title="Tutup" data-window-action="close">
+          <svg width="11" height="11" viewBox="0 0 12 12"><line x1="3" y1="3" x2="9" y2="9" stroke="currentColor" stroke-width="1.3"></line><line x1="9" y1="3" x2="3" y2="9" stroke="currentColor" stroke-width="1.3"></line></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="app-body">
+
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-top">
+          <button class="sidebar-toggle" id="sidebar-toggle" title="Sembunyikan menu">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+
+          <button class="nav-btn" data-screen="beranda">
+            <span class="nav-active-bg"></span><span class="nav-active-bar"></span>
+            <svg class="nav-ico" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V20h5v-6h4v6h5V9.5"></path></svg>
+            <span class="nav-label">Beranda</span>
+            <span class="nav-tip">Beranda</span>
+          </button>
+
+          <button class="nav-btn" data-screen="pdf">
+            <span class="nav-active-bg"></span><span class="nav-active-bar"></span>
+            <svg class="nav-ico" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M9 13h2.2a1.4 1.4 0 0 1 0 2.8H9z"></path><path d="M9 13v5"></path></svg>
+            <span class="nav-label">Ubah PDF</span>
+            <span class="nav-tip">Ubah PDF</span>
+          </button>
+
+          <button class="nav-btn" data-screen="gambar">
+            <span class="nav-active-bg"></span><span class="nav-active-bar"></span>
+            <svg class="nav-ico" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.4"></rect><circle cx="8.5" cy="9.5" r="1.6"></circle><path d="m4 17 4.5-4.5 3.5 3.5 3-3L20 17"></path></svg>
+            <span class="nav-label">Ubah Gambar</span>
+            <span class="nav-tip">Ubah Gambar</span>
+          </button>
+
+          <button class="nav-btn" data-screen="riwayat">
+            <span class="nav-active-bg"></span><span class="nav-active-bar"></span>
+            <svg class="nav-ico" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 4v4h4"></path><path d="M12 8v4l3 2"></path></svg>
+            <span class="nav-label">Riwayat</span>
+            <span class="nav-tip">Riwayat</span>
+          </button>
+
+          <button class="nav-btn" data-screen="pengaturan">
+            <span class="nav-active-bg"></span><span class="nav-active-bar"></span>
+            <svg class="nav-ico" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 13.5a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H4a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.3-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+            <span class="nav-label">Pengaturan</span>
+            <span class="nav-tip">Pengaturan</span>
+          </button>
+
+          <button class="nav-btn" data-screen="sistem">
+            <span class="nav-active-bg"></span><span class="nav-active-bar"></span>
+            <svg class="nav-ico" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M12 2v3"></path><path d="M19 5l-2 2"></path><path d="M5 5l2 2"></path><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"></path></svg>
+            <span class="nav-label">Pemeriksaan</span>
+            <span class="nav-tip">Pemeriksaan Sistem</span>
+          </button>
+
+          <button class="nav-btn" data-screen="tentang">
+            <span class="nav-active-bg"></span><span class="nav-active-bar"></span>
+            <svg class="nav-ico" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01"></path><path d="M11 12h1v4h1"></path></svg>
+            <span class="nav-label">Tentang</span>
+            <span class="nav-tip">Tentang Ubahin</span>
+          </button>
+        </div>
+
+        <div class="sidebar-foot">
+          <button class="theme-toggle" id="theme-toggle" title="Ganti tema">
+            <svg class="theme-ico-dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"></path></svg>
+            <svg class="theme-ico-light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.6 6.6 0 0 0 21 12.8z"></path></svg>
+            <span class="theme-label">Mode gelap</span>
+          </button>
+          <div class="sidebar-version">Ubahin · <span id="app-version">v…</span></div>
+        </div>
+      </aside>
+
+      <main class="main">
+
+        <header class="topbar">
+          <div class="topbar-title">
+            <span class="topbar-title-text" id="topbar-title">Beranda</span>
+            <span class="topbar-crumb" id="topbar-crumb">Ringkasan &amp; alat cepat</span>
+          </div>
+          <div class="topbar-right">
+            <div class="search-box" title="Pencarian belum tersedia">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4-4"></path></svg>
+              <span>Cari alat atau file…</span>
+            </div>
+            <div class="avatar">U</div>
+          </div>
+        </header>
+
+        <div class="content-scroll">
+
+          <section class="screen" data-screen="beranda">
+            <div class="screen-inner">
+              <h1 class="page-title">Halo, mau ubah file apa hari ini?</h1>
+              <p class="page-lead">Pilih alat yang kamu butuhkan. Semua proses dilakukan langsung di laptopmu, tanpa upload ke internet.</p>
+
+              <div class="tool-grid">
+                <button class="tool-card" data-action="go-pdf">
+                  <span class="tool-ico tone-blue"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.4"></rect><circle cx="8.5" cy="9.5" r="1.5"></circle><path d="m4 17 4.5-4.5 3.5 3.5 3-3L20 17"></path></svg></span>
+                  <span><span class="tool-name">PDF ke JPG</span><span class="tool-desc">Setiap halaman jadi gambar</span></span>
+                </button>
+                <button class="tool-card" data-action="coming-soon">
+                  <span class="tool-ico tone-sage"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="m9 15 1.5-3 1.5 3"></path></svg></span>
+                  <span><span class="tool-name">JPG ke PDF</span><span class="tool-desc">Gabung gambar jadi PDF</span></span>
+                </button>
+                <button class="tool-card" data-action="coming-soon">
+                  <span class="tool-ico tone-lavender"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="11" height="14" rx="2"></rect><path d="M17 7h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-2"></path></svg></span>
+                  <span><span class="tool-name">Gabungkan PDF</span><span class="tool-desc">Satukan beberapa PDF</span></span>
+                </button>
+                <button class="tool-card" data-action="coming-soon">
+                  <span class="tool-ico tone-peach"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H6a2 2 0 0 0-2 2v3M15 3h3a2 2 0 0 1 2 2v3M9 21H6a2 2 0 0 1-2-2v-3M15 21h3a2 2 0 0 0 2-2v-3"></path><path d="M8 12h8"></path></svg></span>
+                  <span><span class="tool-name">Kompres PDF</span><span class="tool-desc">Perkecil ukuran file</span></span>
+                </button>
+                <button class="tool-card" data-action="coming-soon">
+                  <span class="tool-ico tone-pink"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M8.5 13.5 11 16l4-4"></path></svg></span>
+                  <span><span class="tool-name">PDF ke Word</span><span class="tool-desc">Ubah jadi dokumen Word</span></span>
+                </button>
+                <button class="tool-card" data-action="go-gambar">
+                  <span class="tool-ico tone-blue"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h5v5M9 20H4v-5M20 4l-7 7M4 20l7-7"></path></svg></span>
+                  <span><span class="tool-name">Ubah Ukuran Gambar</span><span class="tool-desc">Atur lebar &amp; tinggi</span></span>
+                </button>
+                <button class="tool-card" data-action="go-gambar">
+                  <span class="tool-ico tone-sage"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.4"></rect><circle cx="8.5" cy="9.5" r="1.5"></circle><path d="m4 17 4.5-4.5 3.5 3.5 3-3L20 17"></path></svg></span>
+                  <span><span class="tool-name">PNG ke JPG</span><span class="tool-desc">Gambar lebih ringan</span></span>
+                </button>
+                <button class="tool-card" data-action="go-gambar">
+                  <span class="tool-ico tone-lavender"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.4"></rect><circle cx="8.5" cy="9.5" r="1.5"></circle><path d="m4 17 4.5-4.5 3.5 3.5 3-3L20 17"></path></svg></span>
+                  <span><span class="tool-name">JPG ke PNG</span><span class="tool-desc">Gambar lebih tajam</span></span>
+                </button>
+              </div>
+
+              <div class="section-head">
+                <h2 class="section-title">Terakhir digunakan</h2>
+                <button class="link-btn" data-action="go-riwayat">Lihat semua</button>
+              </div>
+              <div class="card-list" id="beranda-recents">
+                <div class="empty-row" id="beranda-recents-empty">Belum ada konversi yang tercatat.</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="pdf-empty">
+            <div class="screen-inner">
+              <h1 class="page-title-md">PDF ke JPG</h1>
+              <p class="page-lead-sm">Ubah setiap halaman PDF menjadi gambar JPG berkualitas tinggi.</p>
+              <button class="dropzone" id="pdf-pick">
+                <span class="dropzone-icon">
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M12 18v-6"></path><path d="m9.5 14.5 2.5-2.5 2.5 2.5"></path></svg>
+                </span>
+                <span class="dropzone-title">Pilih file PDF dari komputer</span>
+                <span class="dropzone-sep">atau</span>
+                <span class="dropzone-cta">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path></svg>
+                  Pilih File PDF
+                </span>
+                <span class="dropzone-hint">Maksimal 50 file · Diproses langsung di perangkatmu</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="pdf-queue">
+            <div class="screen-inner queue-inner">
+              <div class="queue-header">
+                <div>
+                  <h1 class="page-title-md">PDF ke JPG</h1>
+                  <p class="page-lead-sm"><span id="queue-count">0</span> file siap diubah · total <span id="queue-pages">0</span> halaman</p>
+                </div>
+                <button class="ghost-btn" id="queue-add">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  Tambah file
+                </button>
+              </div>
+
+              <div class="pdf-grid" data-pdfgrid>
+                <div class="file-list" id="file-list"></div>
+
+                <div class="settings-panel" data-pdfpanel>
+                  <div class="panel-head"><h3>Pengaturan hasil</h3></div>
+
+                  <div class="panel-body">
+                    <div class="field">
+                      <label>Folder hasil</label>
+                      <div class="folder-row">
+                        <div class="folder-path" id="folder-path">…</div>
+                        <button class="ghost-btn-sm" id="folder-pick">Pilih</button>
+                      </div>
+                    </div>
+
+                    <div class="field">
+                      <label>Kualitas gambar</label>
+                      <div class="segmented" data-segmented="quality">
+                        <button data-value="Standard">Standard</button>
+                        <button data-value="Tinggi" class="active">Tinggi</button>
+                        <button data-value="Sangat Tinggi">Sangat Tinggi</button>
+                      </div>
+                    </div>
+
+                    <div class="field">
+                      <label>Resolusi</label>
+                      <div class="segmented" data-segmented="dpi">
+                        <button data-value="150">150 DPI</button>
+                        <button data-value="200" class="active">200 DPI</button>
+                        <button data-value="300">300 DPI</button>
+                      </div>
+                    </div>
+
+                    <div class="field">
+                      <div class="field-head"><label>Kualitas JPG</label><span class="field-value" id="jpg-q-value">90%</span></div>
+                      <input type="range" min="70" max="95" step="5" value="90" id="jpg-quality">
+                    </div>
+
+                    <div class="toggle-list">
+                      <div class="toggle-row">
+                        <span>Optimalkan ukuran file</span>
+                        <button class="toggle on" data-toggle="optimize"><span class="knob"></span></button>
+                      </div>
+                      <div class="toggle-row">
+                        <span>Buat file ZIP</span>
+                        <button class="toggle" data-toggle="zip"><span class="knob"></span></button>
+                      </div>
+                      <div class="toggle-row">
+                        <span>Buka folder setelah selesai</span>
+                        <button class="toggle on" data-toggle="open"><span class="knob"></span></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="estimate-box">
+                    <div class="kv"><span>Total file</span><span id="est-files">0 file</span></div>
+                    <div class="kv"><span>Total halaman</span><span id="est-pages">0 halaman</span></div>
+                    <div class="kv"><span>Perkiraan gambar</span><span id="est-images">± 0 JPG</span></div>
+                    <div class="kv"><span>Perkiraan ukuran</span><span class="accent" id="est-size">± 0 MB</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="cta-bar">
+                <button class="cta-secondary" id="queue-clear-all">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
+                  Hapus semua
+                </button>
+                <button class="cta-primary" id="queue-start">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+                  Mulai ubah file
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="pdf-processing">
+            <div class="screen-inner proc-inner">
+              <div class="proc-header">
+                <span class="spinner"></span>
+                <h1>Sedang mengubah file</h1>
+                <p>Tetap di laptopmu — tidak ada yang dikirim ke internet.</p>
+              </div>
+              <div class="proc-card">
+                <div class="proc-overall">
+                  <div class="row-between"><span class="muted">Keseluruhan</span><span class="accent-strong" id="proc-pct">0%</span></div>
+                  <div class="bar-track"><div class="bar-fill" id="proc-bar" style="width:0%"></div></div>
+                  <div class="row-between small">
+                    <span><span id="proc-files-done">0</span> dari <span id="proc-files-total">0</span> file selesai</span>
+                    <span>Sisa waktu ± <span id="proc-eta">—</span></span>
+                  </div>
+                </div>
+                <div class="proc-current">
+                  <div class="proc-current-row">
+                    <span class="file-ico tone-blue"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path></svg></span>
+                    <div class="proc-current-meta">
+                      <div class="proc-current-name" id="proc-current-name">—</div>
+                      <div class="proc-current-pages">Halaman <span id="proc-page-cur">0</span> dari <span id="proc-page-tot">0</span></div>
+                    </div>
+                  </div>
+                  <div class="bar-track small-bar"><div class="bar-fill success" id="proc-file-bar" style="width:0%"></div></div>
+                </div>
+                <div class="proc-log">
+                  <button class="proc-log-toggle" id="proc-log-toggle">
+                    <span>Aktivitas</span>
+                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+                  </button>
+                  <div class="proc-log-body" id="proc-log-body"></div>
+                </div>
+              </div>
+              <div class="proc-cancel-wrap">
+                <button class="cancel-btn" id="proc-cancel">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>
+                  Batalkan proses
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="pdf-done">
+            <div class="screen-inner done-inner">
+              <div class="done-header">
+                <span class="done-check"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"></path></svg></span>
+                <h1 id="done-title">File berhasil diubah.</h1>
+                <p id="done-sub">Hasil konversi sudah siap digunakan.</p>
+              </div>
+              <div class="done-summary">
+                <div class="done-row"><span>File berhasil diubah</span><span id="done-files">0 file</span></div>
+                <div class="done-row"><span>Gambar JPG dibuat</span><span id="done-images">0 gambar</span></div>
+                <div class="done-row"><span>Waktu proses</span><span id="done-time">—</span></div>
+                <div class="done-row"><span>Lokasi folder</span><span class="folder-text" id="done-folder">—</span></div>
+              </div>
+              <div class="done-actions">
+                <button class="cta-primary grow" id="done-open">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+                  Buka folder hasil
+                </button>
+                <button class="ghost-btn-lg" id="done-again">Ubah file lagi</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="gambar">
+            <div class="screen-inner">
+              <h1 class="page-title-md">Ubah Gambar</h1>
+              <p class="page-lead-sm">Alat sederhana untuk mengubah dan merapikan gambar — semuanya offline.</p>
+              <div class="image-grid">
+                <div class="image-card disabled">
+                  <span class="coming">Segera hadir</span>
+                  <span class="image-ico tone-sage"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.4"></rect><circle cx="8.5" cy="9.5" r="1.5"></circle><path d="m4 17 4.5-4.5 3.5 3.5 3-3L20 17"></path></svg></span>
+                  <span><span class="image-name">JPG ke PNG</span><span class="image-desc">Ubah gambar agar lebih tajam dan mendukung transparansi.</span></span>
+                </div>
+                <div class="image-card disabled">
+                  <span class="coming">Segera hadir</span>
+                  <span class="image-ico tone-blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.4"></rect><circle cx="8.5" cy="9.5" r="1.5"></circle><path d="m4 17 4.5-4.5 3.5 3.5 3-3L20 17"></path></svg></span>
+                  <span><span class="image-name">PNG ke JPG</span><span class="image-desc">Buat gambar lebih ringan untuk dibagikan atau dicetak.</span></span>
+                </div>
+                <div class="image-card disabled">
+                  <span class="coming">Segera hadir</span>
+                  <span class="image-ico tone-peach"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H6a2 2 0 0 0-2 2v3M15 3h3a2 2 0 0 1 2 2v3M9 21H6a2 2 0 0 1-2-2v-3M15 21h3a2 2 0 0 0 2-2v-3M8 12h8"></path></svg></span>
+                  <span><span class="image-name">Kompres Gambar</span><span class="image-desc">Perkecil ukuran tanpa banyak menurunkan kualitas.</span></span>
+                </div>
+                <div class="image-card disabled">
+                  <span class="coming">Segera hadir</span>
+                  <span class="image-ico tone-lavender"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h5v5M9 20H4v-5M20 4l-7 7M4 20l7-7"></path></svg></span>
+                  <span><span class="image-name">Ubah Ukuran Gambar</span><span class="image-desc">Atur lebar dan tinggi sesuai kebutuhanmu.</span></span>
+                </div>
+                <div class="image-card disabled">
+                  <span class="coming">Segera hadir</span>
+                  <span class="image-ico tone-pink"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M7 7l10 10M17 7 7 17"></path></svg></span>
+                  <span><span class="image-name">Ubah Format Gambar</span><span class="image-desc">WebP, BMP, dan format lain — segera tersedia.</span></span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="riwayat">
+            <div class="screen-inner">
+              <h1 class="page-title-md">Riwayat</h1>
+              <p class="page-lead-sm">Semua konversi yang pernah kamu lakukan, tersimpan di perangkatmu.</p>
+              <div class="history-filters" id="hist-filters">
+                <button data-filter="semua" class="active">Semua</button>
+                <button data-filter="berhasil">Berhasil</button>
+                <button data-filter="gagal">Gagal</button>
+              </div>
+              <div class="card-list" id="hist-list">
+                <div class="empty-row">Belum ada riwayat konversi.</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="pengaturan">
+            <div class="screen-inner small-inner">
+              <h1 class="page-title-md">Pengaturan</h1>
+              <div class="settings-card">
+                <div class="settings-row">
+                  <div class="settings-title">Tema tampilan</div>
+                  <div class="settings-desc">Pilih tampilan yang paling nyaman di matamu.</div>
+                  <div class="segmented" data-segmented="theme">
+                    <button data-value="light">Light</button>
+                    <button data-value="dark">Dark</button>
+                    <button data-value="system" class="active">Ikuti sistem</button>
+                  </div>
+                </div>
+                <div class="settings-row">
+                  <div class="settings-title">Folder hasil default</div>
+                  <div class="folder-row">
+                    <div class="folder-path" id="settings-folder">…</div>
+                    <button class="ghost-btn-sm" id="settings-folder-pick">Pilih folder</button>
+                  </div>
+                </div>
+                <div class="settings-row">
+                  <div class="settings-title">Mode performa</div>
+                  <div class="settings-desc">Atur seberapa banyak tenaga laptop yang dipakai.</div>
+                  <div class="segmented" data-segmented="perf">
+                    <button data-value="hemat_ram">Hemat RAM</button>
+                    <button data-value="seimbang" class="active">Seimbang</button>
+                    <button data-value="cepat">Cepat</button>
+                  </div>
+                </div>
+                <div class="settings-row inline">
+                  <div>
+                    <div class="settings-title">Beri tahu saat selesai</div>
+                    <div class="settings-desc">Tampilkan notifikasi setelah konversi beres.</div>
+                  </div>
+                  <button class="toggle on" data-toggle="notify"><span class="knob"></span></button>
+                </div>
+                <div class="settings-row inline">
+                  <div>
+                    <div class="settings-title">Buka folder otomatis</div>
+                    <div class="settings-desc">Buka folder hasil setelah konversi selesai.</div>
+                  </div>
+                  <button class="toggle on" data-toggle="open-after"><span class="knob"></span></button>
+                </div>
+                <div class="settings-row inline">
+                  <div>
+                    <div class="settings-title">Buat ZIP otomatis</div>
+                    <div class="settings-desc">Bungkus seluruh hasil dalam satu file ZIP.</div>
+                  </div>
+                  <button class="toggle" data-toggle="auto-zip"><span class="knob"></span></button>
+                </div>
+                <div class="settings-row inline">
+                  <div>
+                    <div class="settings-title">Tentang Ubahin</div>
+                    <div class="settings-desc">Versi <span id="settings-version">…</span> · Konverter file offline</div>
+                  </div>
+                  <span class="badge-accent">Terbaru</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="sistem">
+            <div class="screen-inner small-inner">
+              <h1 class="page-title-md">Pemeriksaan Sistem</h1>
+              <p class="page-lead-sm">Periksa apakah semua komponen yang dibutuhkan Ubahin tersedia dan berjalan baik.</p>
+              <div class="settings-card">
+                <div class="settings-row inline">
+                  <div>
+                    <div class="settings-title">Lokasi data aplikasi</div>
+                    <div class="settings-desc"><span id="sys-app-data">…</span></div>
+                  </div>
+                  <button class="ghost-btn-sm" id="sys-open-log">Buka folder log</button>
+                </div>
+                <div class="settings-row inline">
+                  <div>
+                    <div class="settings-title">Ruang disk bebas</div>
+                    <div class="settings-desc"><span id="sys-disk">…</span></div>
+                  </div>
+                  <span class="badge-soft" id="sys-disk-badge">OK</span>
+                </div>
+                <div class="settings-row inline">
+                  <div>
+                    <div class="settings-title">Akselerasi native</div>
+                    <div class="settings-desc"><span id="sys-native">…</span></div>
+                  </div>
+                  <span class="badge-soft" id="sys-native-badge">—</span>
+                </div>
+              </div>
+              <div class="settings-card" style="margin-top:16px">
+                <div class="settings-row">
+                  <div class="settings-title">Komponen wajib</div>
+                  <div class="settings-desc">Pustaka yang diperlukan untuk mengonversi PDF dan gambar.</div>
+                  <div class="check-list" id="sys-checks"></div>
+                </div>
+              </div>
+              <div class="cta-bar">
+                <button class="ghost-btn-lg" id="sys-rerun">Jalankan pemeriksaan ulang</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="tentang">
+            <div class="screen-inner small-inner">
+              <h1 class="page-title-md">Tentang Ubahin</h1>
+              <p class="page-lead-sm">Konverter file offline untuk Windows. Semua proses berjalan di komputermu — tidak ada upload ke internet.</p>
+              <div class="settings-card">
+                <div class="settings-row inline">
+                  <div>
+                    <div class="settings-title">Versi aplikasi</div>
+                    <div class="settings-desc" id="tentang-version">…</div>
+                  </div>
+                  <span class="badge-accent">Terbaru</span>
+                </div>
+                <div class="settings-row inline">
+                  <div>
+                    <div class="settings-title">Folder log</div>
+                    <div class="settings-desc" id="tentang-logdir">…</div>
+                  </div>
+                  <button class="ghost-btn-sm" id="tentang-open-log">Buka</button>
+                </div>
+                <div class="settings-row">
+                  <div class="settings-title">Hak cipta</div>
+                  <div class="settings-desc">© 2026 Catalism-1. Dirilis untuk penggunaan pribadi maupun komersial.</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </main>
+    </div>
+
+    <div class="modal-mask" id="modal-mask" hidden>
+      <div class="modal" role="dialog" aria-modal="true">
+        <span class="modal-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg></span>
+        <h3 id="modal-title">Hapus semua file?</h3>
+        <p id="modal-body">Semua file dalam antrean akan dikeluarkan. Tindakan ini tidak bisa dibatalkan.</p>
+        <div class="modal-actions">
+          <button class="modal-btn modal-cancel" id="modal-cancel">Batal</button>
+          <button class="modal-btn modal-confirm" id="modal-confirm">Ya, hapus</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" hidden>
+      <span class="toast-dot"></span>
+      <span class="toast-msg" id="toast-msg">…</span>
+    </div>
+
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

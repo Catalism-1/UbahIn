@@ -12,7 +12,7 @@ if errorlevel 1 exit /b 1
 if not exist "%DIST_ROOT%" mkdir "%DIST_ROOT%"
 echo Building %APP_NAME% portable release... > "%BUILD_LOG%"
 
-"%PYTHON_EXE%" -c "import fitz, PIL, pypdf, PyInstaller" >nul 2>nul
+"%PYTHON_EXE%" -c "import fitz, PIL, pypdf, PyInstaller, webview" >nul 2>nul
 if errorlevel 1 (
   echo Installing dependencies into local virtual environment...
   "%PYTHON_EXE%" -m pip install -r requirements.txt >> "%BUILD_LOG%" 2>&1
@@ -37,6 +37,7 @@ if exist "assets\app_icon.ico" (
 
 set "DATA_ARGS="
 if exist assets set "DATA_ARGS=--add-data assets;assets"
+if exist "src\ubahin\desktop\web" set "DATA_ARGS=%DATA_ARGS% --add-data src\ubahin\desktop\web;ubahin\desktop\web"
 
 set "NATIVE_ARGS="
 "%PYTHON_EXE%" -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('ubahin_native') else 1)" >nul 2>nul
@@ -54,7 +55,14 @@ if not errorlevel 1 set "NATIVE_ARGS=--hidden-import ubahin_native"
   %DATA_ARGS% ^
   --collect-all pymupdf ^
   --collect-all PIL ^
+  --collect-all webview ^
   --hidden-import pypdf ^
+  --hidden-import webview ^
+  --hidden-import webview.platforms.winforms ^
+  --hidden-import clr_loader ^
+  --hidden-import pythonnet ^
+  --hidden-import bottle ^
+  --hidden-import proxy_tools ^
   %NATIVE_ARGS% ^
   --exclude-module pytest ^
   --exclude-module ruff ^

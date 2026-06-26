@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 
-call build_portable.bat
+call "%~dp0build_portable.bat"
 if errorlevel 1 exit /b 1
 
 set "ISCC_EXE="
