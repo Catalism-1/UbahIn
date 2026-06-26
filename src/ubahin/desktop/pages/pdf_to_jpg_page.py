@@ -4,6 +4,8 @@ import queue
 import threading
 import time
 import tkinter as tk
+import traceback
+from dataclasses import dataclass
 from pathlib import Path
 from tkinter import filedialog, messagebox
 from typing import Any, Callable
@@ -15,10 +17,23 @@ from ubahin.desktop.widgets.progress_panel import ProgressPanel
 from ubahin.desktop.widgets.settings_panel import SettingsPanel
 from ubahin.events import AppEvent
 from ubahin.manager import ConversionManager
-from ubahin.models import ConversionOptions, PerformanceMode
-from ubahin.utils import get_log_dir, open_in_file_manager, setup_logging
+from ubahin.models import ConversionOptions, PerformanceMode, QualityPreset
+from ubahin.utils import get_log_dir, get_logger, open_in_file_manager, setup_logging
 
 MAX_FILES = 50
+LOGGER = get_logger("ubahin.desktop.pdf_to_jpg")
+
+
+@dataclass(slots=True)
+class ConversionRequest:
+    input_paths: list[Path]
+    output_dir: Path
+    quality_preset: QualityPreset
+    dpi: int
+    jpeg_quality: int
+    create_zip: bool
+    open_after_finish: bool
+    optimize_file_size: bool
 
 
 class PdfToJpgPage(tk.Frame):
@@ -30,10 +45,15 @@ class PdfToJpgPage(tk.Frame):
         self.manager: ConversionManager | None = None
         self.job_id: str | None = None
         self.is_running = False
+        self.cancel_requested = False
         self.started_at = 0.0
         self.completed_files = 0
+        self.open_after_finish = False
+        self.main_thread_id = threading.get_ident()
+        self._closed = False
+        self._poll_after_id: str | None = None
         self._build()
-        self.after(100, self._drain_events)
+        self._poll_after_id = self.after(100, self._drain_events)
 
     def _build(self) -> None:
         self.grid_rowconfigure(1, weight=1)
@@ -193,15 +213,40 @@ class PdfToJpgPage(tk.Frame):
         self.settings.set_start_enabled(not self.is_running and has_valid_file and all_checked and output_ok)
 
     def start_conversion(self) -> None:
+        if self.is_running:
+            return
         output_dir = self.settings.output_path()
         if output_dir is None or not output_dir.exists() or not output_dir.is_dir():
             messagebox.showwarning("Folder output", "Pilih folder output yang valid terlebih dahulu.")
             return
+        if not self._is_writable_dir(output_dir):
+            messagebox.showwarning("Folder output", "Folder output tidak dapat ditulis.")
+            return
         if not self.items:
             messagebox.showwarning("Belum ada PDF", "Pilih minimal satu file PDF.")
             return
+        valid_items = [item for item in self.items if item.status != "Gagal"]
+        if not valid_items:
+            messagebox.showwarning("Belum ada PDF valid", "Tidak ada PDF valid yang bisa diproses.")
+            return
+
+        preset, dpi, quality, _label = self.settings.preset_values()
+        request = ConversionRequest(
+            input_paths=[item.path for item in valid_items],
+            output_dir=output_dir,
+            quality_preset=preset,
+            dpi=dpi,
+            jpeg_quality=quality,
+            create_zip=self.settings.zip_var.get(),
+            open_after_finish=self.settings.open_after_var.get(),
+            optimize_file_size=self.settings.optimize_var.get(),
+        )
 
         self.is_running = True
+        self.cancel_requested = False
+        self.manager = None
+        self.job_id = None
+        self.open_after_finish = request.open_after_finish
         self.started_at = time.monotonic()
         self.completed_files = 0
         self.progress.reset()
@@ -214,49 +259,60 @@ class PdfToJpgPage(tk.Frame):
                 item.error = ""
         self.file_queue.set_items(self.items)
 
-        thread = threading.Thread(target=self._run_conversion, args=(output_dir,), daemon=True, name="ubahin-demo-convert")
+        thread = threading.Thread(target=self._run_conversion, args=(request,), daemon=True, name="ubahin-demo-convert")
         thread.start()
 
-    def _run_conversion(self, output_dir: Path) -> None:
+    def _run_conversion(self, request: ConversionRequest) -> None:
         try:
             setup_logging()
-            preset, dpi, quality, _label = self.settings.preset_values()
+            LOGGER.info("Starting conversion worker thread=%s files=%s", threading.current_thread().name, len(request.input_paths))
             options = ConversionOptions(
-                output_dir=output_dir,
-                quality_preset=preset,
-                dpi=dpi,
-                jpeg_quality=quality,
+                output_dir=request.output_dir,
+                quality_preset=request.quality_preset,
+                dpi=request.dpi,
+                jpeg_quality=request.jpeg_quality,
                 performance_mode=PerformanceMode.BALANCED,
-                create_zip=self.settings.zip_var.get(),
-                open_output_after_finish=self.settings.open_after_var.get(),
-                optimize_file_size=self.settings.optimize_var.get(),
+                create_zip=request.create_zip,
+                open_output_after_finish=False,
+                optimize_file_size=request.optimize_file_size,
                 max_files=MAX_FILES,
             )
             manager = ConversionManager()
-            manager.add_listener(lambda event: self.events.put(("backend_event", event)))
-            job = manager.create_pdf_to_jpg_job([item.path for item in self.items], options)
+            manager.add_listener(lambda event: self._queue_backend_event(event))
+            job = manager.create_pdf_to_jpg_job(request.input_paths, options)
             self.manager = manager
             self.job_id = job.job_id
+            self.events.put(("job_ready", job.job_id))
             manager.start(job.job_id)
         except Exception as exc:
-            self.events.put(("conversion_error", f"{type(exc).__name__}: {exc}"))
+            LOGGER.exception("Conversion worker failed before job start thread=%s", threading.current_thread().name)
+            self.events.put(("conversion_error", {"message": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc()}))
 
     def cancel_conversion(self) -> None:
+        self.cancel_requested = True
         if self.manager and self.job_id:
             self.manager.cancel(self.job_id)
-            self.status_callback("Permintaan pembatalan dikirim.")
-            self.progress.status_var.set("Membatalkan proses...")
+        self.status_callback("Permintaan pembatalan dikirim.")
+        self.progress.status_var.set("Membatalkan proses...")
+
+    def _queue_backend_event(self, event: AppEvent) -> None:
+        LOGGER.info("Queue UI event type=%s job_id=%s thread=%s", event.kind, event.job_id, threading.current_thread().name)
+        self.events.put(("backend_event", event))
 
     def _drain_events(self) -> None:
+        if self._closed:
+            return
+        self._assert_main_thread("_drain_events")
         while True:
             try:
                 kind, payload = self.events.get_nowait()
             except queue.Empty:
                 break
             self._handle_event(kind, payload)
-        self.after(100, self._drain_events)
+        self._poll_after_id = self.after(100, self._drain_events)
 
     def _handle_event(self, kind: str, payload: object) -> None:
+        self._assert_main_thread(f"_handle_event:{kind}")
         if kind == "inspect_ok":
             path, pages, size = payload  # type: ignore[misc]
             self._update_item(Path(path), pages=int(pages), size_bytes=int(size), status="Siap", error="")
@@ -266,10 +322,16 @@ class PdfToJpgPage(tk.Frame):
         elif kind == "backend_event":
             self._handle_backend_event(payload)  # type: ignore[arg-type]
         elif kind == "conversion_error":
-            self._finish_after_error(str(payload))
+            message = str(payload.get("message", payload)) if isinstance(payload, dict) else str(payload)
+            self._finish_after_error(message)
+        elif kind == "job_ready":
+            self.job_id = str(payload)
+            if self.cancel_requested and self.manager:
+                self.manager.cancel(self.job_id)
         self.refresh_state()
 
     def _handle_backend_event(self, event: AppEvent) -> None:
+        self._assert_main_thread(f"backend_event:{event.kind}")
         payload = event.payload
         if event.kind == "file_analyzed":
             self.file_queue.update_by_filename(
@@ -348,7 +410,11 @@ class PdfToJpgPage(tk.Frame):
         self._set_controls_running(False)
         self.progress.status_var.set("Konversi gagal sebelum dimulai.")
         self.status_callback("Konversi gagal. Detail teknis tersimpan di log.")
-        messagebox.showerror("Konversi gagal", f"Konversi tidak dapat dimulai.\n\n{message}")
+        LOGGER.error("Conversion failed before start: %s", message)
+        messagebox.showerror(
+            "Konversi gagal",
+            "Konversi gagal dijalankan. Silakan buka log untuk melihat detail.",
+        )
 
     def _finish_job(self, job: dict[str, Any]) -> None:
         self.is_running = False
@@ -365,6 +431,9 @@ class PdfToJpgPage(tk.Frame):
             self.progress.status_var.set("Konversi selesai.")
             self.status_callback("Konversi selesai.")
         self.progress.overall_var.set(100 if total_pages and completed_pages >= total_pages else self.progress.overall_var.get())
+        if self.open_after_finish and status in {"completed", "completed_with_errors"}:
+            output_dir = Path(str(job.get("options", {}).get("output_dir", "")))
+            self._open_path(output_dir)
         try:
             self.winfo_toplevel().bell()
         except tk.TclError:
@@ -372,6 +441,7 @@ class PdfToJpgPage(tk.Frame):
         self._show_result_dialog(job, success)
 
     def _set_controls_running(self, running: bool) -> None:
+        self._assert_main_thread("_set_controls_running")
         state = "disabled" if running else "normal"
         self.pick_button.configure(state=state)
         self.clear_button.configure(state=state)
@@ -466,3 +536,32 @@ class PdfToJpgPage(tk.Frame):
         self.file_queue.set_items(self.items)
         self.progress.reset()
         self.refresh_state()
+
+    @staticmethod
+    def _is_writable_dir(path: Path) -> bool:
+        try:
+            probe = path / ".ubahin_write_test.tmp"
+            probe.write_text("ok", encoding="utf-8")
+            probe.unlink(missing_ok=True)
+            return True
+        except OSError:
+            return False
+
+    def _assert_main_thread(self, action: str) -> None:
+        if threading.get_ident() != self.main_thread_id:
+            LOGGER.error(
+                "Unsafe Tk access detected action=%s current_thread=%s main_thread_id=%s",
+                action,
+                threading.current_thread().name,
+                self.main_thread_id,
+            )
+
+    def destroy(self) -> None:
+        self._closed = True
+        if self._poll_after_id is not None:
+            try:
+                self.after_cancel(self._poll_after_id)
+            except tk.TclError:
+                pass
+            self._poll_after_id = None
+        super().destroy()

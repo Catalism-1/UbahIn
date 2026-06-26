@@ -20,7 +20,7 @@ def setup_logging(log_dir: Path | None = None) -> logging.Logger:
             backupCount=5,
             encoding="utf-8",
         )
-        handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s"))
+        handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(threadName)s | %(name)s | %(message)s"))
         logger.addHandler(handler)
     return logger
 

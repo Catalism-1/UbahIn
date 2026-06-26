@@ -2,11 +2,12 @@
 
 Ubahin adalah backend converter file lokal/offline untuk Windows. Release candidate lokal `0.1.1` fokus pada hal paling dasar untuk distribusi: aplikasi bisa di-build, diinstal, dibuka, dan diuji di laptop Windows 10/11 64-bit.
 
-Tahap ini belum memasang GUI final Claude. `Ubahin.exe` sekarang membuka desktop shell sementara untuk validasi installer dan startup.
+Tahap ini belum memasang GUI final Claude. `Ubahin.exe` sekarang membuka UI demo sementara untuk mencoba konversi PDF ke JPG secara nyata.
 
 ## Yang Ada Saat Ini
 
-- Desktop launcher sementara berbasis Tkinter.
+- UI demo sementara berbasis Tkinter untuk PDF ke JPG.
+- Antrean PDF, preset kualitas, progress konversi, batal proses, ZIP hasil, dan dialog ringkasan.
 - CLI backend lama tetap tersedia melalui `ubahin.cli`.
 - Self-check internal: `Ubahin.exe --self-check --silent`.
 - Startup diagnostics ke `%LOCALAPPDATA%\Ubahin\logs\startup.log`.
@@ -21,7 +22,10 @@ Tahap ini belum memasang GUI final Claude. `Ubahin.exe` sekarang membuka desktop
 ```text
 main.py                         entry point desktop untuk EXE
 src/ubahin/cli.py               CLI backend lama
-src/ubahin/desktop/app.py       desktop shell sementara
+src/ubahin/desktop/app.py       launcher desktop
+src/ubahin/desktop/main_window.py window utama UI demo
+src/ubahin/desktop/pages/       halaman PDF ke JPG, self-check, tentang
+src/ubahin/desktop/widgets/     widget antrean file, setting, progress
 src/ubahin/desktop/self_check.py self-check internal
 src/ubahin/desktop/startup.py   startup diagnostics
 src/ubahin/desktop/diagnostics.py diagnostic report
@@ -135,17 +139,20 @@ Output disimpan ke:
 %LOCALAPPDATA%\Ubahin\logs\diagnostic_report.txt
 ```
 
-## Jika Aplikasi Gagal Dibuka
+## Jika Aplikasi Gagal Dibuka atau Konversi Gagal
 
 Cek log:
 
 ```text
 %LOCALAPPDATA%\Ubahin\logs\startup.log
+%LOCALAPPDATA%\Ubahin\logs\ubahin.log
 %LOCALAPPDATA%\Ubahin\logs\self_check.log
 %LOCALAPPDATA%\Ubahin\logs\diagnostic_report.txt
 ```
 
 Jika dijalankan dari release `--noconsole`, aplikasi akan menampilkan dialog sederhana dan menyimpan traceback lengkap ke `startup.log`.
+
+Jika error muncul saat klik `Mulai Ubah File`, cek `ubahin.log`. UI demo memakai event queue agar worker converter tidak menyentuh Tkinter langsung; log mencatat nama thread, jenis event, dan job id saat proses berjalan.
 
 ## Catatan
 

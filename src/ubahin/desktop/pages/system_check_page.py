@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import queue
 import threading
 import tkinter as tk
 from typing import Callable
@@ -14,9 +15,13 @@ class SystemCheckPage(tk.Frame):
     def __init__(self, master: tk.Misc, status_callback: Callable[[str], None]) -> None:
         super().__init__(master, bg="#0f172a")
         self.status_callback = status_callback
+        self.events: queue.Queue[str] = queue.Queue()
         self.report_var = tk.StringVar(value="Klik tombol pemeriksaan untuk melihat status dependency.")
+        self._closed = False
+        self._poll_after_id: str | None = None
         self._build()
         self._set_initial_report()
+        self._poll_after_id = self.after(120, self._poll_events)
 
     def _build(self) -> None:
         self.grid_columnconfigure(0, weight=1)
@@ -113,7 +118,18 @@ class SystemCheckPage(tk.Frame):
             text = format_report(report)
         except Exception as exc:
             text = f"Pemeriksaan gagal: {type(exc).__name__}: {exc}"
-        self.after(0, lambda: self._show_report(text))
+        self.events.put(text)
+
+    def _poll_events(self) -> None:
+        if self._closed:
+            return
+        while True:
+            try:
+                text = self.events.get_nowait()
+            except queue.Empty:
+                break
+            self._show_report(text)
+        self._poll_after_id = self.after(120, self._poll_events)
 
     def _show_report(self, text: str) -> None:
         self._write_text(text)
@@ -124,3 +140,13 @@ class SystemCheckPage(tk.Frame):
         self.text.delete("1.0", "end")
         self.text.insert("1.0", text)
         self.text.configure(state="disabled")
+
+    def destroy(self) -> None:
+        self._closed = True
+        if self._poll_after_id is not None:
+            try:
+                self.after_cancel(self._poll_after_id)
+            except tk.TclError:
+                pass
+            self._poll_after_id = None
+        super().destroy()
