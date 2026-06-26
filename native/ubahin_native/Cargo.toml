@@ -1,0 +1,16 @@
+[package]
+name = "ubahin_native"
+version = "0.2.0"
+edition = "2021"
+
+[lib]
+name = "ubahin_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }
+sha2 = "0.10"
+sysinfo = "0.30"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = ["Win32_Storage_FileSystem"] }
