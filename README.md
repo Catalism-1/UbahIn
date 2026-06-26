@@ -1,135 +1,129 @@
-# UBAHIN
+# Ubahin
 
-**Ubah file jadi lebih mudah.**
+Ubahin adalah backend converter file lokal/offline untuk Windows. Fokusnya adalah proses konversi yang stabil, antrean pekerjaan yang aman, dan paket aplikasi portable/installer yang bisa dijalankan pengguna akhir tanpa menginstal Python secara manual.
 
-Ubahin adalah backend lokal/offline untuk aplikasi converter file Windows. Tahap ini fokus pada arsitektur backend, service layer, job system, validasi, riwayat SQLite, settings lokal, logging, dan API internal yang siap disambungkan ke GUI modern.
+Semua proses berjalan lokal. Tidak ada upload file, API cloud, database eksternal, atau koneksi internet yang dibutuhkan saat aplikasi dipakai.
 
-## Arsitektur
+## Fitur Utama
+
+- PDF ke JPG sampai 50 PDF per antrean.
+- Render PDF satu per satu dengan PyMuPDF agar RAM tidak melonjak.
+- DPI output: 120, 150, 200, dan 300.
+- Kualitas JPG: 70, 80, 90, dan 95.
+- Mode performa: hemat RAM, seimbang, dan cepat.
+- Background worker, cancellation token, dan status job yang jelas.
+- Jika satu file gagal, file berikutnya tetap diproses.
+- Validasi PDF rusak, PDF terkunci, file tidak terbaca, output tidak bisa ditulis, dan estimasi ruang disk.
+- Nama file aman untuk Windows dan anti-tertimpa dengan suffix otomatis.
+- Atomic write untuk mengurangi risiko file hasil setengah jadi.
+- Log proses dan error ke `conversion_log.txt`.
+- ZIP hasil konversi.
+- Riwayat lokal SQLite dengan migrasi schema dan retention.
+- Logging aplikasi di folder data lokal pengguna.
+- Optional native module Rust/PyO3 dengan fallback Python otomatis.
+
+## Struktur Project
 
 ```text
-src/ubahin/
-├── core/
-├── services/
-├── utils/
-└── ui_bridge/
+Ubahin/
+├── main.py
+├── src/ubahin/
+│   ├── core/
+│   ├── services/
+│   ├── ui_bridge/
+│   ├── utils/
+│   └── native_bridge.py
+├── native/
+│   └── ubahin_native/
+├── tests/
+├── scripts/
+├── assets/
+├── .github/workflows/
+├── build_portable.bat
+├── build_installer.bat
+├── installer_script.iss
+├── requirements.txt
+└── pyproject.toml
 ```
 
-Modul lama seperti `manager.py`, `converter.py`, `history.py`, dan `settings.py` tetap dipertahankan agar kode PDF ke JPG yang sudah bekerja tidak rusak.
+## Menjalankan Source Code
 
-## Fitur yang Sudah Jadi
-
-- PDF ke JPG, maksimal 50 PDF per antrean.
-- Render halaman PDF satu per satu dengan PyMuPDF.
-- DPI: 120, 150, 200, 300.
-- Kualitas JPG: 70, 80, 90, 95.
-- Output per PDF masuk folder sendiri.
-- Nama file aman Windows dan anti-tertimpa dengan suffix `_01`, `_02`.
-- Progress per file, per halaman, dan keseluruhan.
-- Pembatalan proses melalui cancellation token.
-- Jika satu file gagal, file berikutnya tetap diproses.
-- JPG/PNG/WEBP ke PDF.
-- Merge PDF.
-- Split PDF semua halaman atau rentang seperti `1-3, 4-8`.
-- Kompres PDF lokal dengan PyMuPDF.
-- Ubah format gambar.
-- Resize gambar.
-- Kompres gambar.
-- ZIP hasil.
-- Riwayat lokal SQLite.
-- Settings lokal.
-- Rotating log di `logs/ubahin.log`.
-- UI bridge yang mengembalikan dictionary sederhana untuk GUI.
-
-## Fitur Coming Soon
-
-Fitur berikut sengaja tidak dibuat palsu:
-
-- PDF ke Word dengan layout sempurna.
-- Word ke PDF kompleks.
-- OCR.
-- Excel atau PowerPoint converter.
-
-## Instalasi Dependency
+Gunakan Python 3.11 atau lebih baru.
 
 ```bat
 cd "D:\Projek Pribadi Kode\convert_pdf\Ubahin_backend_foundation\Ubahin"
 py -m venv .venv
 .venv\Scripts\activate
 py -m pip install -r requirements.txt
-```
-
-## Menjalankan Test
-
-```bat
-py -m pytest
-```
-
-## Menjalankan CLI Dummy
-
-```bat
 py main.py "C:\PDF\contoh.pdf" -o "C:\Hasil Ubahin" --preset high --zip
 ```
 
-## Contoh API Internal
+## Membuat EXE Portable
 
-```python
-from ubahin.core import JobManager
-
-manager = JobManager()
-job = manager.create_job(
-    "pdf_to_jpg",
-    [r"C:\PDF\contoh.pdf"],
-    r"C:\Hasil Ubahin",
-    dpi=200,
-    jpg_quality=90,
-)
-manager.start_job(job.job_id)
-manager.wait(job.job_id)
-print(manager.get_job(job.job_id).to_dict())
-```
-
-## UI Bridge
-
-```python
-from ubahin.ui_bridge import AppController
-
-controller = AppController()
-response = controller.create_job(
-    "merge_pdf",
-    ["a.pdf", "b.pdf"],
-    "hasil",
-    output_name="gabungan.pdf",
-)
-controller.start_job(response["job_id"])
-```
-
-## Build Portable
+Jalankan:
 
 ```bat
 build_portable.bat
 ```
 
-Hasil:
+Hasil build ada di:
 
 ```text
 dist\Ubahin\Ubahin.exe
 ```
 
-## Build Installer
+Folder `dist\Ubahin` adalah versi portable. Folder ini bisa disalin ke laptop Windows lain dan dijalankan tanpa instalasi Python.
 
-Butuh Inno Setup 6.
+## Membuat Installer
+
+Install Inno Setup 6 terlebih dahulu, lalu jalankan:
 
 ```bat
 build_installer.bat
 ```
 
-Hasil:
+Hasil installer ada di:
 
 ```text
 dist\installer\Ubahin_Setup.exe
 ```
 
+Installer akan membuat shortcut Desktop dan Start Menu dengan nama aplikasi `Ubahin`.
+
+## Native Rust Opsional
+
+Folder `native/ubahin_native` berisi modul Rust/PyO3 opsional untuk akselerasi helper seperti hashing, sanitasi path, snapshot sistem, dan estimasi ukuran. Jika modul native tidak tersedia, aplikasi otomatis memakai fallback Python dari `src/ubahin/native_bridge.py`.
+
+Build native lokal membutuhkan Rust toolchain dan Maturin:
+
+```bat
+py -m pip install maturin
+cd native\ubahin_native
+maturin develop --release
+```
+
+Workflow GitHub Actions juga menyiapkan Rust dan membangun wheel native di Windows runner.
+
+## Quality Gate
+
+Perintah yang dipakai untuk pengecekan lokal:
+
+```bat
+py -m ruff check src tests
+py -m pytest
+py scripts\benchmark_smoke.py
+dist\Ubahin\Ubahin.exe --help
+```
+
+## CI dan Release
+
+Workflow tersedia di:
+
+- `.github/workflows/ci.yml` untuk lint, test, dan smoke import.
+- `.github/workflows/build-windows.yml` untuk build Windows, artefak portable, installer, dan release saat tag `v*`.
+
 ## Catatan Keterbatasan
 
-- Kompres PDF menggunakan optimasi aman dari PyMuPDF. Jika ukuran hasil tidak lebih kecil, sistem tidak mengklaim berhasil menghemat ukuran.
-- PDF ke Word, Word ke PDF, dan OCR belum diimplementasikan karena membutuhkan pendekatan yang lebih khusus agar hasilnya tidak menyesatkan pengguna.
+- Modul native Rust bersifat opsional. Tanpa Rust, aplikasi tetap berjalan dengan fallback Python.
+- PDF ke Word, Word ke PDF kompleks, dan OCR belum diimplementasikan agar aplikasi tidak memberi hasil yang menyesatkan.
+- Build lokal installer membutuhkan Inno Setup 6 tersedia di PATH atau lokasi instalasi standar.
