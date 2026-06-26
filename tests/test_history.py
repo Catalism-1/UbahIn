@@ -19,3 +19,12 @@ def test_history_database(sample_pdf: Path, tmp_path: Path) -> None:
     assert rows[0]["tool_type"] == "pdf_to_jpg"
     history.delete(job.job_id)
     assert history.list_recent() == []
+
+
+def test_history_migration_and_retention(tmp_path: Path) -> None:
+    database = tmp_path / "history.sqlite3"
+    service = HistoryService(database, retention_limit=1)
+    assert service.list_recent() == []
+    with service._connect() as connection:  # noqa: SLF001 - intentional schema smoke test
+        rows = connection.execute("SELECT version FROM schema_migrations").fetchall()
+    assert rows[0]["version"] == 1

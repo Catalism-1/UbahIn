@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ubahin.core import CancellationToken, JobManager, JobStatus
+from ubahin.core import JobManager, JobStatus
 from ubahin.core.validation import validate_pdf_file
 from ubahin.services import PdfToImageOptions, PdfToImageService
 
