@@ -16,6 +16,7 @@ import logging
 import shutil
 import threading
 import uuid
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
@@ -54,12 +55,35 @@ class DesktopBridge:
         self.history_service: HistoryService = self.job_manager.history_service
         self.settings_service = SettingsService()
         self.logger = get_logger("ubahin.bridge")
+        self.frontend_logger = self._build_frontend_logger()
         self._window = None  # set after pywebview window is created
         self._selected_files: dict[str, dict[str, Any]] = {}
         self._last_output_folder: Path | None = None
         self._jobs_meta: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
         self._wire_job_events()
+
+    def _build_frontend_logger(self) -> logging.Logger:
+        log_dir = get_log_dir()
+        log_dir.mkdir(parents=True, exist_ok=True)
+        logger = logging.getLogger("ubahin.frontend")
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+        log_path = log_dir / "frontend.log"
+        if not any(
+            isinstance(handler, RotatingFileHandler)
+            and Path(getattr(handler, "baseFilename", "")) == log_path
+            for handler in logger.handlers
+        ):
+            handler = RotatingFileHandler(
+                log_path,
+                maxBytes=1_000_000,
+                backupCount=5,
+                encoding="utf-8",
+            )
+            handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s"))
+            logger.addHandler(handler)
+        return logger
 
     # --------- pywebview hooks ---------
     def attach_window(self, window: Any) -> None:
@@ -163,6 +187,8 @@ class DesktopBridge:
     # ------------------------------------------------------------------
     def get_app_info(self) -> dict[str, Any]:
         try:
+            import os
+
             app_dir = get_app_data_dir()
             log_dir = get_log_dir()
             native = native_status()
@@ -174,11 +200,28 @@ class DesktopBridge:
                     "log_dir": str(log_dir),
                     "native": native,
                     "performance_mode": self.settings_service.load().performance_mode.value,
+                    "debug": os.environ.get("UBAHIN_DEBUG_WEBVIEW") == "1",
                 }
             )
         except Exception as exc:  # pragma: no cover
             self.logger.exception("get_app_info gagal")
             return _err(f"Tidak dapat membaca info aplikasi: {exc}")
+
+    def log_frontend(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        try:
+            data = payload if isinstance(payload, dict) else {"message": str(payload)}
+            level = str(data.get("level") or "info").lower()
+            message = json.dumps(data, ensure_ascii=False, default=str, sort_keys=True)
+            if level == "error":
+                self.frontend_logger.error(message)
+            elif level == "warning":
+                self.frontend_logger.warning(message)
+            else:
+                self.frontend_logger.info(message)
+            return _ok()
+        except Exception as exc:
+            self.logger.exception("log_frontend gagal")
+            return _err(f"Tidak dapat menulis log frontend: {exc}")
 
     def window_action(self, action: str) -> dict[str, Any]:
         if self._window is None:

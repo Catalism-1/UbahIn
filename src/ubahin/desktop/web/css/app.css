@@ -317,8 +317,16 @@ input[type="range"] { width:100%; accent-color:var(--accent); height:4px; cursor
 .check-row .cname { flex:1; min-width:0; font-weight:500; }
 .check-row .cmsg { color:var(--text2); font-size:11.5px; }
 
-/* ===== MODAL & TOAST ===== */
-.modal-mask { position:fixed; inset:0; background:rgba(30,34,32,.42); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; z-index:60; animation:ub-fade .18s ease; }
+/* ===== MODAL & TOAST =====
+ * Both overlays default to display:none and become visible only when JS adds
+ * `.show`. We don't rely on the [hidden] attribute alone because UA-stylesheet
+ * specificity for `[hidden]` is unreliable next to our `display:flex` rule in
+ * older Edge/WebView2 versions, which kept the overlay stuck on screen.
+ */
+[hidden] { display: none !important; }
+
+.modal-mask { position:fixed; inset:0; background:rgba(30,34,32,.42); backdrop-filter:blur(2px); display:none; align-items:center; justify-content:center; z-index:60; }
+.modal-mask.show { display:flex; animation:ub-fade .18s ease; }
 .modal { background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow-lg); width:380px; padding:26px; text-align:center; }
 .modal-ico { width:52px; height:52px; border-radius:50%; background:rgba(212,123,123,.14); display:inline-flex; align-items:center; justify-content:center; color:var(--error); margin-bottom:16px; }
 .modal h3 { font-family:'Plus Jakarta Sans', 'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 7px; color:var(--text); }
@@ -330,7 +338,8 @@ input[type="range"] { width:100%; accent-color:var(--accent); height:4px; cursor
 .modal-confirm { background:var(--error); border:none; color:#fff; font-weight:700; font-family:'Plus Jakarta Sans', 'Inter', sans-serif; }
 .modal-confirm:hover { filter:brightness(.95); }
 
-.toast { position:fixed; bottom:26px; left:50%; transform:translateX(-50%); z-index:70; display:flex; align-items:center; gap:11px; background:var(--text); color:var(--surface); padding:12px 18px; border-radius:12px; box-shadow:var(--shadow-lg); font-size:13px; font-weight:500; animation:ub-toast .3s cubic-bezier(.2,.9,.3,1.1); }
+.toast { position:fixed; bottom:26px; left:50%; transform:translateX(-50%); z-index:70; display:none; align-items:center; gap:11px; background:var(--text); color:var(--surface); padding:12px 18px; border-radius:12px; box-shadow:var(--shadow-lg); font-size:13px; font-weight:500; }
+.toast.show { display:flex; animation:ub-toast .3s cubic-bezier(.2,.9,.3,1.1); }
 .toast-dot { width:8px; height:8px; border-radius:50%; background:#fff; flex:0 0 auto; }
 .toast.success .toast-dot { background:var(--accent); }
 .toast.error .toast-dot { background:var(--error); }

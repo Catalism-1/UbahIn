@@ -33,6 +33,12 @@ const Ubahin = (() => {
     histFilter: 'semua',
     appInfo: null,
     pendingConfirm: null,
+    activeModal: null,
+    modalLastFocus: null,
+    globalLoading: { active: false, message: '', action: '', startedAt: 0 },
+    lastBridgeCall: null,
+    bridgeReady: false,
+    debugPanel: null,
   };
 
   // ---------- DOM helpers ----------
@@ -72,25 +78,137 @@ const Ubahin = (() => {
 
   const tints = ['tone-blue', 'tone-sage', 'tone-lavender', 'tone-peach', 'tone-pink'];
 
+  // ---------- timeout / loading helpers ----------
+  const withTimeout = (promise, ms = 10000, label = 'Operasi terlalu lama') => {
+    return new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error(label)), ms);
+      Promise.resolve(promise).then(
+        (v) => { clearTimeout(t); resolve(v); },
+        (e) => { clearTimeout(t); reject(e); },
+      );
+    });
+  };
+
+  const BRIDGE_TIMEOUTS = {
+    select_pdf_files: 10000,
+    select_output_folder: 10000,
+    start_pdf_to_jpg_job: 10000,
+    get_settings: 5000,
+    save_settings: 5000,
+    clear_selected_files: 5000,
+    remove_selected_file: 3000,
+    get_recent_history: 5000,
+    get_system_check: 10000,
+    open_output_folder: 5000,
+    open_log_folder: 5000,
+    get_app_info: 5000,
+    cancel_job: 5000,
+    window_action: 3000,
+    log_frontend: 3000,
+  };
+
+  const sendFrontendLog = (payload = {}) => {
+    if (!window.pywebview?.api?.log_frontend) return;
+    try {
+      window.pywebview.api.log_frontend({
+        timestamp: new Date().toISOString(),
+        route: state.currentScreen,
+        bridgeReady: state.bridgeReady,
+        loading: state.globalLoading,
+        activeModal: state.activeModal,
+        fileQueueLength: state.files.length,
+        activeJobId: state.activeJob?.jobId || null,
+        lastBridgeCall: state.lastBridgeCall,
+        ...payload,
+      });
+    } catch (_) { /* best effort */ }
+  };
+
+  const logFrontendError = (error, action = 'frontend.error') => {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error(action, err);
+    sendFrontendLog({
+      level: 'error',
+      action,
+      error: err.message,
+      stack: err.stack || '',
+    });
+  };
+
+  const setGlobalLoading = (active, message = '', action = '') => {
+    state.globalLoading = {
+      active: !!active,
+      message: active ? message : '',
+      action: active ? action : '',
+      startedAt: active ? Date.now() : 0,
+    };
+    renderDebugPanel();
+  };
+
+  const runWithGlobalLoading = async (action, message, operation, errorMessage) => {
+    setGlobalLoading(true, message, action);
+    try {
+      return await operation();
+    } catch (err) {
+      logFrontendError(err, action);
+      if (errorMessage) showToast(errorMessage, 'error');
+      throw err;
+    } finally {
+      setGlobalLoading(false);
+    }
+  };
+
   // ---------- bridge ----------
+  let bridgeReady = false;
+
+  const markBridgeReady = () => {
+    bridgeReady = true;
+    state.bridgeReady = true;
+    console.info('PyWebView bridge siap');
+    sendFrontendLog({ level: 'info', action: 'bridge.ready' });
+    renderDebugPanel();
+  };
+
+  window.addEventListener('pywebviewready', markBridgeReady);
+
   const bridge = {
     ready() {
-      return !!(window.pywebview && window.pywebview.api);
+      return bridgeReady && !!(window.pywebview && window.pywebview.api);
     },
-    async waitReady(timeoutMs = 5000) {
+    require() {
+      if (!this.ready()) {
+        throw new Error('Bridge aplikasi belum siap. Coba beberapa saat lagi.');
+      }
+      return window.pywebview.api;
+    },
+    async waitReady(timeoutMs = 8000) {
+      if (this.ready()) return;
       const start = Date.now();
       while (!this.ready()) {
-        if (Date.now() - start > timeoutMs) throw new Error('Bridge tidak tersedia.');
+        if (!bridgeReady && window.pywebview?.api) markBridgeReady();
+        if (Date.now() - start > timeoutMs) throw new Error('Bridge Python belum siap.');
         await new Promise(r => setTimeout(r, 50));
       }
     },
     async call(name, ...args) {
       await this.waitReady();
+      const ms = BRIDGE_TIMEOUTS[name] || 8000;
+      const api = this.require();
+      if (typeof api[name] !== 'function') {
+        throw new Error(`Bridge method tidak tersedia: ${name}`);
+      }
+      state.lastBridgeCall = { name, startedAt: new Date().toISOString() };
+      renderDebugPanel();
       try {
-        const result = await window.pywebview.api[name](...args);
+        const result = await withTimeout(api[name](...args), ms, `${name}: melebihi waktu tunggu`);
+        state.lastBridgeCall = { ...state.lastBridgeCall, finishedAt: new Date().toISOString(), ok: true };
+        renderDebugPanel();
         return result;
       } catch (err) {
         console.error('[bridge]', name, err);
+        state.lastBridgeCall = { ...state.lastBridgeCall, finishedAt: new Date().toISOString(), ok: false };
+        if (name !== 'log_frontend') logFrontendError(err, `bridge.${name}`);
+        renderDebugPanel();
         throw err;
       }
     },
@@ -101,30 +219,56 @@ const Ubahin = (() => {
   const showToast = (msg, type = 'info') => {
     const node = $('#toast');
     if (!node) return;
-    node.className = `toast ${type}`;
+    node.className = `toast ${type} show`;
     $('#toast-msg').textContent = msg;
-    node.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { node.hidden = true; }, 2600);
+    toastTimer = setTimeout(() => { node.classList.remove('show'); }, 2600);
   };
 
-  const askConfirm = ({ title, body, confirmText = 'Ya, hapus' }) => {
-    return new Promise((resolve) => {
-      $('#modal-title').textContent = title;
-      $('#modal-body').textContent = body;
-      $('#modal-confirm').textContent = confirmText;
-      $('#modal-mask').hidden = false;
-      state.pendingConfirm = resolve;
-    });
+  const openModal = ({ title, body, confirmText = 'Ya, hapus' }) => {
+    state.activeModal = 'confirm-clear-files';
+    state.modalLastFocus = document.activeElement;
+    $('#modal-title').textContent = title;
+    $('#modal-body').textContent = body;
+    $('#modal-confirm').textContent = confirmText;
+    $('#modal-mask').classList.add('show');
+    $('#modal-confirm').focus();
+    renderDebugPanel();
+  };
+
+  const hideModal = () => {
+    $('#modal-mask').classList.remove('show');
+    state.activeModal = null;
+    const lastFocus = state.modalLastFocus;
+    state.modalLastFocus = null;
+    if (lastFocus && typeof lastFocus.focus === 'function') {
+      try { lastFocus.focus(); } catch (_) { /* ignore stale focus target */ }
+    }
+    renderDebugPanel();
   };
 
   const closeModal = (result) => {
-    $('#modal-mask').hidden = true;
+    hideModal();
     if (state.pendingConfirm) {
-      const r = state.pendingConfirm;
+      const resolve = state.pendingConfirm;
       state.pendingConfirm = null;
-      r(result);
+      try { resolve(result); } catch (_) { /* never throws */ }
     }
+  };
+
+  // Public: hard-close any modal and reject any pending confirm. Used on
+  // route changes and as a safety net inside unhandledrejection.
+  const closeAllModals = () => {
+    closeModal(false);
+  };
+
+  const askConfirm = ({ title, body, confirmText = 'Ya, hapus' }) => {
+    // If a stale confirm is still pending, resolve it as cancelled first.
+    if (state.pendingConfirm) closeModal(false);
+    return new Promise((resolve) => {
+      state.pendingConfirm = resolve;
+      openModal({ title, body, confirmText });
+    });
   };
 
   // ---------- routing ----------
@@ -139,6 +283,8 @@ const Ubahin = (() => {
   };
 
   const showScreen = (screen) => {
+    // Safety: dismiss any open modal so it can't trail into the new screen.
+    if (state.pendingConfirm) closeModal(false); else hideModal();
     state.currentScreen = screen;
     $$('.nav-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.screen === screen);
@@ -197,7 +343,9 @@ const Ubahin = (() => {
     $('#queue-start').disabled = count === 0;
   };
 
-  const removeFile = async (fileId) => {
+  // Frontend-first removal: update state + DOM immediately, sync the backend
+  // in the background. A failed sync never blocks the UI.
+  const removeFile = (fileId) => {
     state.files = state.files.filter(f => f.id !== fileId);
     if (state.files.length === 0) {
       state.pdfStage = 'empty';
@@ -205,7 +353,7 @@ const Ubahin = (() => {
     } else {
       renderQueue();
     }
-    try { await bridge.call('remove_selected_file', fileId); } catch (_) {}
+    bridge.call('remove_selected_file', fileId).catch(() => {});
   };
 
   const clearFiles = async () => {
@@ -216,16 +364,28 @@ const Ubahin = (() => {
       confirmText: 'Ya, hapus',
     });
     if (!ok) return;
+    // Update UI immediately so the modal disappears and the queue clears
+    // without waiting for any backend round-trip.
     state.files = [];
     state.pdfStage = 'empty';
     showScreen('pdf');
-    try { await bridge.call('clear_selected_files'); } catch (_) {}
-    showToast('Semua file dihapus', 'info');
+    showToast('Semua file telah dihapus.', 'success');
+    // Best-effort backend sync; failures are logged but never block the UI.
+    bridge.call('clear_selected_files').catch((err) => {
+      console.warn('clear_selected_files sync failed:', err);
+      logFrontendError(err, 'clear_selected_files.background_sync');
+      showToast('Antrean lokal sudah kosong. Sinkronisasi backend gagal.', 'warning');
+    });
   };
 
   const pickFiles = async () => {
     try {
-      const result = await bridge.call('select_pdf_files');
+      const result = await runWithGlobalLoading(
+        'select_pdf_files',
+        'Membuka pemilih file...',
+        () => bridge.call('select_pdf_files'),
+        'Tidak dapat membuka pemilih file.',
+      );
       if (!result || !result.success) {
         if (result && result.message) showToast(result.message, 'error');
         return;
@@ -242,14 +402,19 @@ const Ubahin = (() => {
       showScreen('pdf');
       renderQueue();
     } catch (err) {
-      showToast('Tidak dapat membuka pemilih file.', 'error');
+      // runWithGlobalLoading already logged and notified.
     }
   };
 
   // ---------- folder picker ----------
   const pickFolder = async (target = 'queue') => {
     try {
-      const result = await bridge.call('select_output_folder');
+      const result = await runWithGlobalLoading(
+        'select_output_folder',
+        'Membuka pemilih folder...',
+        () => bridge.call('select_output_folder'),
+        'Tidak dapat membuka pemilih folder.',
+      );
       if (!result || !result.success) return;
       const folder = result.data?.folder;
       if (!folder) return;
@@ -262,7 +427,7 @@ const Ubahin = (() => {
         showToast('Folder hasil default disimpan', 'success');
       }
     } catch (err) {
-      showToast('Tidak dapat membuka pemilih folder.', 'error');
+      // runWithGlobalLoading already logged and notified.
     }
   };
 
@@ -300,7 +465,12 @@ const Ubahin = (() => {
     };
 
     try {
-      const result = await bridge.call('start_pdf_to_jpg_job', payload);
+      const result = await runWithGlobalLoading(
+        'start_pdf_to_jpg_job',
+        'Memulai konversi...',
+        () => bridge.call('start_pdf_to_jpg_job', payload),
+        'Tidak dapat memulai konversi.',
+      );
       if (!result || !result.success) {
         state.pdfStage = 'queue';
         showScreen('pdf');
@@ -311,7 +481,7 @@ const Ubahin = (() => {
     } catch (err) {
       state.pdfStage = 'queue';
       showScreen('pdf');
-      showToast('Tidak dapat memulai konversi.', 'error');
+      // runWithGlobalLoading already logged and notified.
     }
   };
 
@@ -591,6 +761,36 @@ const Ubahin = (() => {
     try { await bridge.call('save_settings', state.settings); } catch (_) {}
   };
 
+  const debugEnabled = () => !!(state.appInfo?.debug || localStorage.getItem('ubahinDebug') === '1');
+
+  function renderDebugPanel() {
+    if (!state.debugPanel) return;
+    state.debugPanel.innerHTML = `
+      <strong>Debug Ubahin</strong>
+      <div>Bridge: ${state.bridgeReady ? 'siap' : 'belum siap'}</div>
+      <div>Modal: ${state.activeModal || '-'}</div>
+      <div>Loading: ${state.globalLoading.active ? `${state.globalLoading.action} (${state.globalLoading.message})` : '-'}</div>
+      <div>Queue: ${state.files.length} file</div>
+      <div>Job: ${state.activeJob?.jobId || '-'}</div>
+      <div>Bridge call: ${state.lastBridgeCall?.name || '-'}</div>
+    `;
+  }
+
+  const toggleDebugPanel = () => {
+    if (!debugEnabled()) return;
+    if (state.debugPanel) {
+      state.debugPanel.remove();
+      state.debugPanel = null;
+      return;
+    }
+    const panel = el('div', {
+      style: 'position:fixed;right:16px;bottom:16px;z-index:90;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:12px 14px;font-size:12px;line-height:1.7;min-width:240px;',
+    });
+    document.body.appendChild(panel);
+    state.debugPanel = panel;
+    renderDebugPanel();
+  };
+
   // ---------- wiring ----------
   const wireEvents = () => {
     $$('.nav-btn').forEach(btn => btn.addEventListener('click', () => showScreen(btn.dataset.screen)));
@@ -642,6 +842,10 @@ const Ubahin = (() => {
     $('#modal-cancel').addEventListener('click', () => closeModal(false));
     $('#modal-confirm').addEventListener('click', () => closeModal(true));
     $('#modal-mask').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(false); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && state.activeModal) closeModal(false);
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') toggleDebugPanel();
+    });
 
     $('#jpg-quality').addEventListener('input', (e) => {
       state.jpgQuality = Number(e.target.value);
@@ -706,6 +910,20 @@ const Ubahin = (() => {
       const handler = events[name];
       if (handler) handler(payload || {});
     });
+
+    window.addEventListener('unhandledrejection', (e) => {
+      closeAllModals();
+      setGlobalLoading(false);
+      logFrontendError(e.reason || 'Unhandled promise rejection', 'window.unhandledrejection');
+      showToast('Terjadi kesalahan. Aplikasi tetap bisa digunakan.', 'error');
+    });
+
+    window.addEventListener('error', (e) => {
+      closeAllModals();
+      setGlobalLoading(false);
+      logFrontendError(e.error || e.message || 'Unhandled error', 'window.error');
+      showToast('Terjadi kesalahan. Aplikasi tetap bisa digunakan.', 'error');
+    });
   };
 
   // Backend → frontend dispatcher (called from Python via evaluate_js)
@@ -716,9 +934,13 @@ const Ubahin = (() => {
   // ---------- init ----------
   const init = async () => {
     wireEvents();
+    setGlobalLoading(true, 'Memulai aplikasi...', 'startup');
+    if (window.pywebview?.api) markBridgeReady();
     try {
       await bridge.waitReady(8000);
     } catch (err) {
+      setGlobalLoading(false);
+      logFrontendError(err, 'startup.bridge_ready');
       const node = el('div', { class: 'empty-row', style: 'padding:32px;text-align:center;color:var(--error)' }, 'Bridge Python tidak tersedia. Periksa folder log Ubahin.');
       $('.content-scroll').prepend(node);
       return;
@@ -735,6 +957,7 @@ const Ubahin = (() => {
     } catch (_) {}
 
     await loadSettings();
+    setGlobalLoading(false);
     renderQueue();
     showScreen('beranda');
   };
