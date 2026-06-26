@@ -10,6 +10,10 @@ class CancellationToken:
     def cancel(self) -> None:
         self._event.set()
 
+    @property
+    def event(self) -> threading.Event:
+        return self._event
+
     def is_cancelled(self) -> bool:
         return self._event.is_set()
 

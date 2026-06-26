@@ -10,7 +10,7 @@ from ubahin.core.cancellation import CancellationToken
 from ubahin.core.models import FileResult, ServiceResult
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.validation import validate_image_batch, validate_output_dir
-from ubahin.utils import unique_file
+from ubahin.utils import atomic_temp_path, finalize_atomic_write, remove_temp_file, unique_file
 from ubahin.utils.image_utils import normalize_rgb, open_image
 
 
@@ -45,7 +45,13 @@ class ImageResizeService:
                 resized = image.resize(new_size, Image.Resampling.LANCZOS)
                 output_path = unique_file(options.output_dir, f"{image_path.stem}_resized{image_path.suffix}")
                 save_image = normalize_rgb(resized) if output_path.suffix.lower() in {".jpg", ".jpeg"} else resized
-                save_image.save(output_path, quality=options.quality, optimize=True)
+                temp_path = atomic_temp_path(output_path)
+                try:
+                    save_image.save(temp_path, quality=options.quality, optimize=True)
+                    finalize_atomic_write(temp_path, output_path)
+                except Exception:
+                    remove_temp_file(temp_path)
+                    raise
                 image.close()
                 if save_image is not resized:
                     save_image.close()

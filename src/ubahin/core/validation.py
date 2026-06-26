@@ -9,7 +9,6 @@ from ubahin.core.models import AppError
 from ubahin.utils import ensure_writable_directory
 from ubahin.utils.image_utils import SUPPORTED_IMAGE_SUFFIXES
 
-
 SUPPORTED_PDF_SUFFIXES = {".pdf"}
 
 

@@ -6,7 +6,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-
 INVALID_WINDOWS_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 RESERVED_WINDOWS_NAMES = {
     "CON",
@@ -75,3 +74,18 @@ def unique_file(parent: Path, filename: str) -> Path:
         candidate = parent / f"{stem}_{index:02d}{suffix}"
         index += 1
     return candidate
+
+
+def atomic_temp_path(final_path: Path) -> Path:
+    return final_path.with_name(f".{final_path.stem}.tmp{final_path.suffix}")
+
+
+def finalize_atomic_write(temp_path: Path, final_path: Path) -> None:
+    os.replace(temp_path, final_path)
+
+
+def remove_temp_file(path: Path) -> None:
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        pass

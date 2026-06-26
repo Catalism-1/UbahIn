@@ -10,7 +10,7 @@ from ubahin.core.cancellation import CancellationToken
 from ubahin.core.models import FileResult, ServiceResult
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.validation import validate_image_batch, validate_output_dir
-from ubahin.utils import unique_file
+from ubahin.utils import atomic_temp_path, finalize_atomic_write, remove_temp_file, unique_file
 from ubahin.utils.image_utils import normalize_rgb, open_image
 
 
@@ -61,7 +61,13 @@ class ImageToPdfService:
                         )
                     )
             first, rest = pages[0], pages[1:]
-            first.save(output_path, "PDF", save_all=True, append_images=rest, resolution=100)
+            temp_path = atomic_temp_path(output_path)
+            try:
+                first.save(temp_path, "PDF", save_all=True, append_images=rest, resolution=100)
+                finalize_atomic_write(temp_path, output_path)
+            except Exception:
+                remove_temp_file(temp_path)
+                raise
             return ServiceResult(
                 output_paths=[output_path],
                 file_results=[FileResult(input_path=image_files[0], output_paths=[output_path], output_size=output_path.stat().st_size)],

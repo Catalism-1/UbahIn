@@ -9,7 +9,15 @@ from .file_utils import (
     open_in_file_manager,
 )
 from .logger import get_logger, setup_logging
-from .path_utils import app_data_dir, sanitize_filename, unique_directory, unique_file
+from .path_utils import (
+    app_data_dir,
+    atomic_temp_path,
+    finalize_atomic_write,
+    remove_temp_file,
+    sanitize_filename,
+    unique_directory,
+    unique_file,
+)
 
 
 def estimated_output_bytes(pages: int, dpi: int, jpeg_quality: int) -> int:
@@ -20,16 +28,19 @@ def estimated_output_bytes(pages: int, dpi: int, jpeg_quality: int) -> int:
 
 __all__ = [
     "app_data_dir",
+    "atomic_temp_path",
     "available_disk_bytes",
     "coerce_paths",
     "coerce_pdf_paths",
     "ensure_writable_directory",
     "estimated_output_bytes",
     "file_size",
+    "finalize_atomic_write",
     "get_logger",
     "has_enough_space",
     "human_size",
     "open_in_file_manager",
+    "remove_temp_file",
     "sanitize_filename",
     "setup_logging",
     "unique_directory",

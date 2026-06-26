@@ -7,6 +7,7 @@ from typing import Callable
 from ubahin.core.job import Job
 from ubahin.core.models import AppError, JobOptions, JobStatus, ServiceResult, ToolType, utc_now
 from ubahin.core.progress import ProgressInfo
+from ubahin.core.resource_governor import ResourceGovernor
 from ubahin.core.validation import validate_image_batch, validate_output_dir, validate_pdf_batch, validate_pdf_file
 from ubahin.services import (
     CompressPdfOptions,
@@ -28,14 +29,16 @@ from ubahin.services import (
     SplitPdfService,
     ZipService,
 )
-from ubahin.utils import get_logger
+from ubahin.utils import estimated_output_bytes, get_logger
 
 
 class JobManager:
-    def __init__(self, history_service: HistoryService | None = None) -> None:
+    def __init__(self, history_service: HistoryService | None = None, resource_governor: ResourceGovernor | None = None) -> None:
         self.history_service = history_service or HistoryService()
+        self.resource_governor = resource_governor or ResourceGovernor()
         self._jobs: dict[str, Job] = {}
         self._threads: dict[str, threading.Thread] = {}
+        self._queue: list[str] = []
         self._lock = threading.RLock()
         self._callbacks: dict[str, list[Callable[..., None]]] = {
             "on_job_started": [],
@@ -89,14 +92,25 @@ class JobManager:
             validate_image_batch(job.input_files)
         job.status = JobStatus.PENDING
 
+    def queue_job(self, job_id: str) -> None:
+        with self._lock:
+            if job_id not in self._queue:
+                self._queue.append(job_id)
+
     def start_job(self, job_id: str) -> None:
         with self._lock:
-            job = self._jobs[job_id]
             if job_id in self._threads and self._threads[job_id].is_alive():
                 raise AppError("Job sudah berjalan.")
+            self.queue_job(job_id)
             thread = threading.Thread(target=self._run_job, args=(job_id,), daemon=True, name=f"ubahin-job-{job_id[:8]}")
             self._threads[job_id] = thread
             thread.start()
+
+    def pause_job(self, job_id: str) -> None:
+        raise AppError("Pause belum aman untuk proses konversi file besar. Gunakan Batalkan Proses jika perlu.")
+
+    def resume_job(self, job_id: str) -> None:
+        raise AppError("Resume belum tersedia untuk job ini.")
 
     def wait(self, job_id: str, timeout: float | None = None) -> bool:
         thread = self._threads.get(job_id)
@@ -105,7 +119,11 @@ class JobManager:
         thread.join(timeout)
         return not thread.is_alive()
 
+    def wait_for_job(self, job_id: str, timeout: float | None = None) -> bool:
+        return self.wait(job_id, timeout)
+
     def cancel_job(self, job_id: str) -> None:
+        self._jobs[job_id].status = JobStatus.CANCELLING
         self._jobs[job_id].cancellation_token.cancel()
 
     def get_job_status(self, job_id: str) -> JobStatus:
@@ -121,18 +139,41 @@ class JobManager:
         return self._jobs[job_id]
 
     def list_active_jobs(self) -> list[Job]:
-        return [job for job in self._jobs.values() if job.status in {JobStatus.PENDING, JobStatus.VALIDATING, JobStatus.PROCESSING}]
+        return self.get_active_jobs()
+
+    def get_active_jobs(self) -> list[Job]:
+        return [
+            job
+            for job in self._jobs.values()
+            if job.status
+            in {JobStatus.QUEUED, JobStatus.VALIDATING, JobStatus.WAITING_FOR_RESOURCES, JobStatus.PROCESSING, JobStatus.CANCELLING}
+        ]
 
     def list_history(self, limit: int = 50, status: str | None = None) -> list[dict[str, object]]:
         return self.history_service.list_recent(limit=limit, status=status)
 
+    def get_job_history(self, limit: int = 50, status: str | None = None) -> list[dict[str, object]]:
+        return self.list_history(limit, status)
+
     def clear_history(self) -> None:
         self.history_service.clear()
+
+    def shutdown_gracefully(self, timeout: float = 10.0) -> None:
+        for job in self.get_active_jobs():
+            job.cancellation_token.cancel()
+        for thread in list(self._threads.values()):
+            thread.join(timeout)
 
     def _run_job(self, job_id: str) -> None:
         job = self._jobs[job_id]
         try:
             self.validate_job(job_id)
+            if job.cancellation_token.is_cancelled():
+                raise InterruptedError("Proses dibatalkan pengguna.")
+            job.status = JobStatus.WAITING_FOR_RESOURCES
+            snapshot = self.resource_governor.wait_for_resources(job.options.performance_mode, job.options.output_dir)
+            job.resource_snapshot = snapshot.to_dict()
+            self._check_disk_estimate(job)
             job.status = JobStatus.PROCESSING
             job.start_time = utc_now()
             self._emit("on_job_started", job)
@@ -145,9 +186,12 @@ class JobManager:
                 job.status = JobStatus.FAILED
                 job.errors.extend(result.errors)
                 self._emit("on_job_failed", job)
+            elif result.errors:
+                job.status = JobStatus.COMPLETED_WITH_WARNINGS
+                job.warnings.extend(result.errors)
+                self._emit("on_job_completed", job)
             else:
                 job.status = JobStatus.COMPLETED
-                job.errors.extend(result.errors)
                 self._emit("on_job_completed", job)
         except InterruptedError:
             job.status = JobStatus.CANCELLED
@@ -159,8 +203,18 @@ class JobManager:
             self._emit("on_job_failed", job)
         finally:
             job.end_time = utc_now()
+            with self._lock:
+                if job_id in self._queue:
+                    self._queue.remove(job_id)
             self._write_conversion_log(job)
             self.history_service.save_job(job)
+
+    def _check_disk_estimate(self, job: Job) -> None:
+        params = job.options.params
+        if job.tool_type == ToolType.PDF_TO_JPG:
+            total_pages = sum(validate_pdf_file(path) for path in job.input_files)
+            estimate = estimated_output_bytes(total_pages, int(params.get("dpi", 200)), int(params.get("jpg_quality", 90)))
+            self.resource_governor.ensure_enough_disk(job.options.output_dir, estimate)
 
     def _progress_callback(self, job: Job) -> Callable[[ProgressInfo], None]:
         def update(progress: ProgressInfo) -> None:

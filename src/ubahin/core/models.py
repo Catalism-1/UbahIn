@@ -11,12 +11,20 @@ from uuid import uuid4
 class AppError(Exception):
     """Error yang aman ditampilkan untuk pengguna."""
 
+    def __init__(self, message: str, code: object | None = None) -> None:
+        super().__init__(message)
+        self.code = code
+
 
 class JobStatus(str, Enum):
-    PENDING = "pending"
+    QUEUED = "queued"
+    PENDING = "queued"
     VALIDATING = "validating"
+    WAITING_FOR_RESOURCES = "waiting_for_resources"
     PROCESSING = "processing"
+    CANCELLING = "cancelling"
     COMPLETED = "completed"
+    COMPLETED_WITH_WARNINGS = "completed_with_warnings"
     FAILED = "failed"
     CANCELLED = "cancelled"
 

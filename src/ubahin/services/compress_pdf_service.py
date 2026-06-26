@@ -10,7 +10,7 @@ from ubahin.core.cancellation import CancellationToken
 from ubahin.core.models import FileResult, ServiceResult
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.validation import validate_output_dir, validate_pdf_file
-from ubahin.utils import unique_file
+from ubahin.utils import atomic_temp_path, finalize_atomic_write, remove_temp_file, unique_file
 
 
 @dataclass(slots=True)
@@ -33,10 +33,16 @@ class CompressPdfService:
         validate_pdf_file(pdf_file)
         input_size = pdf_file.stat().st_size
         output_path = unique_file(options.output_dir, f"{pdf_file.stem}_compressed.pdf")
+        temp_path = atomic_temp_path(output_path)
         garbage = {"Ringan": 2, "Seimbang": 3, "Maksimal": 4}.get(options.preset, 3)
-        with fitz.open(pdf_file) as document:
-            cancellation.raise_if_cancelled()
-            document.save(output_path, garbage=garbage, deflate=True, clean=True)
+        try:
+            with fitz.open(pdf_file) as document:
+                cancellation.raise_if_cancelled()
+                document.save(temp_path, garbage=garbage, deflate=True, clean=True)
+            finalize_atomic_write(temp_path, output_path)
+        except Exception:
+            remove_temp_file(temp_path)
+            raise
         output_size = output_path.stat().st_size
         message = "PDF berhasil dikompres."
         if output_size >= input_size and not options.keep_if_larger:

@@ -10,7 +10,7 @@ from ubahin.core.cancellation import CancellationToken
 from ubahin.core.models import FileResult, ServiceResult
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.validation import parse_page_ranges, validate_output_dir, validate_pdf_file
-from ubahin.utils import sanitize_filename, unique_file
+from ubahin.utils import atomic_temp_path, finalize_atomic_write, remove_temp_file, sanitize_filename, unique_file
 
 
 @dataclass(slots=True)
@@ -45,8 +45,14 @@ class SplitPdfService:
                 writer.add_page(reader.pages[page_number - 1])
             suffix = f"page_{start:03d}" if start == end else f"pages_{start:03d}_{end:03d}"
             output_path = unique_file(options.output_dir, f"{safe_stem}_{suffix}.pdf")
-            with output_path.open("wb") as handle:
-                writer.write(handle)
+            temp_path = atomic_temp_path(output_path)
+            try:
+                with temp_path.open("wb") as handle:
+                    writer.write(handle)
+                finalize_atomic_write(temp_path, output_path)
+            except Exception:
+                remove_temp_file(temp_path)
+                raise
             result.output_paths.append(output_path)
             if on_progress:
                 on_progress(

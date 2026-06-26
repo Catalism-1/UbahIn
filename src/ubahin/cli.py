@@ -81,4 +81,4 @@ def main(argv: list[str] | None = None) -> int:
         if final_job.zip_path:
             print(f"ZIP hasil: {final_job.zip_path} ({human_size(final_job.zip_path.stat().st_size)})")
 
-    return 0 if final_job.status.value in {"completed", "completed_with_errors"} else 1
+    return 0 if final_job.status.value in {"completed", "completed_with_errors", "completed_with_warnings"} else 1

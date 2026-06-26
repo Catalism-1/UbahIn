@@ -1,3 +1,4 @@
+from .archive_service import ArchiveService
 from .compress_pdf_service import CompressPdfOptions, CompressPdfService
 from .history_service import HistoryService
 from .image_compress_service import ImageCompressOptions, ImageCompressService
@@ -12,6 +13,7 @@ from .zip_service import ZipService
 
 __all__ = [
     "AppSettings",
+    "ArchiveService",
     "CompressPdfOptions",
     "CompressPdfService",
     "HistoryService",

@@ -8,7 +8,7 @@ from ubahin.core.cancellation import CancellationToken
 from ubahin.core.models import FileResult, ServiceResult
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.validation import validate_image_batch, validate_output_dir
-from ubahin.utils import unique_file
+from ubahin.utils import atomic_temp_path, finalize_atomic_write, remove_temp_file, unique_file
 from ubahin.utils.image_utils import normalize_rgb, open_image
 
 
@@ -40,7 +40,13 @@ class ImageCompressService:
                 suffix = image_path.suffix.lower()
                 output_path = unique_file(options.output_dir, f"{image_path.stem}_compressed{suffix}")
                 save_image = normalize_rgb(image) if suffix in {".jpg", ".jpeg"} else image
-                save_image.save(output_path, quality=options.quality, optimize=True)
+                temp_path = atomic_temp_path(output_path)
+                try:
+                    save_image.save(temp_path, quality=options.quality, optimize=True)
+                    finalize_atomic_write(temp_path, output_path)
+                except Exception:
+                    remove_temp_file(temp_path)
+                    raise
                 image.close()
                 if save_image is not image:
                     save_image.close()

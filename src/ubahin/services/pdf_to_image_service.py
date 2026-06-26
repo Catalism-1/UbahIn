@@ -11,8 +11,7 @@ from ubahin.core.cancellation import CancellationToken
 from ubahin.core.models import FileResult, ServiceResult
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.validation import validate_output_dir, validate_pdf_batch
-from ubahin.utils import sanitize_filename, unique_directory, unique_file
-
+from ubahin.utils import atomic_temp_path, finalize_atomic_write, remove_temp_file, sanitize_filename, unique_directory, unique_file
 
 ProgressCallback = Callable[[ProgressInfo], None]
 
@@ -70,7 +69,13 @@ class PdfToImageService:
                             save_args.update({"optimize": True, "progressive": True})
                         if options.jpg_quality >= 90:
                             save_args["subsampling"] = 0
-                        image.save(output_path, "JPEG", **save_args)
+                        temp_path = atomic_temp_path(output_path)
+                        try:
+                            image.save(temp_path, "JPEG", **save_args)
+                            finalize_atomic_write(temp_path, output_path)
+                        except Exception:
+                            remove_temp_file(temp_path)
+                            raise
                         image.close()
                         file_result.output_paths.append(output_path)
                         result.output_paths.append(output_path)

@@ -9,8 +9,9 @@ from ubahin.utils import app_data_dir
 
 
 class HistoryService:
-    def __init__(self, database_path: Path | None = None) -> None:
+    def __init__(self, database_path: Path | None = None, retention_limit: int = 500) -> None:
         self.database_path = database_path or app_data_dir() / "history.sqlite3"
+        self.retention_limit = retention_limit
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
@@ -21,6 +22,14 @@ class HistoryService:
 
     def _initialize(self) -> None:
         with self._connect() as connection:
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    version INTEGER PRIMARY KEY,
+                    applied_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS history (
@@ -40,6 +49,7 @@ class HistoryService:
                 )
                 """
             )
+            connection.execute("INSERT OR IGNORE INTO schema_migrations(version) VALUES (1)")
 
     def save_job(self, job: Job) -> None:
         input_size = sum(path.stat().st_size for path in job.input_files if path.exists())
@@ -76,6 +86,7 @@ class HistoryService:
                     output_size,
                 ),
             )
+            self._apply_retention(connection)
 
     def list_recent(self, limit: int = 50, status: str | None = None) -> list[dict[str, Any]]:
         query = "SELECT * FROM history"
@@ -96,3 +107,18 @@ class HistoryService:
     def clear(self) -> None:
         with self._connect() as connection:
             connection.execute("DELETE FROM history")
+
+    def _apply_retention(self, connection: sqlite3.Connection) -> None:
+        if self.retention_limit <= 0:
+            return
+        connection.execute(
+            """
+            DELETE FROM history
+            WHERE job_id NOT IN (
+                SELECT job_id FROM history
+                ORDER BY COALESCE(started_at, finished_at, '') DESC
+                LIMIT ?
+            )
+            """,
+            (self.retention_limit,),
+        )

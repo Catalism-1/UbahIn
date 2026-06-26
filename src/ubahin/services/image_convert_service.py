@@ -8,7 +8,7 @@ from ubahin.core.cancellation import CancellationToken
 from ubahin.core.models import FileResult, ServiceResult
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.validation import validate_image_batch, validate_output_dir
-from ubahin.utils import unique_file
+from ubahin.utils import atomic_temp_path, finalize_atomic_write, remove_temp_file, unique_file
 from ubahin.utils.image_utils import normalize_rgb, open_image
 
 
@@ -45,7 +45,13 @@ class ImageConvertService:
                     save_format = target
                 output_path = unique_file(options.output_dir, f"{image_path.stem}{suffix}")
                 save_args = {"quality": options.quality} if save_format in {"JPEG", "WEBP"} else {}
-                image.save(output_path, save_format, **save_args)
+                temp_path = atomic_temp_path(output_path)
+                try:
+                    image.save(temp_path, save_format, **save_args)
+                    finalize_atomic_write(temp_path, output_path)
+                except Exception:
+                    remove_temp_file(temp_path)
+                    raise
                 image.close()
                 file_result.output_paths.append(output_path)
                 file_result.output_size = output_path.stat().st_size

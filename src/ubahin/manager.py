@@ -117,7 +117,6 @@ class ConversionManager:
 
     def start(self, job_id: str) -> None:
         with self._lock:
-            job = self._jobs[job_id]
             runtime = self._runtime[job_id]
             if runtime.thread and runtime.thread.is_alive():
                 raise RuntimeError("Proses konversi sudah berjalan.")

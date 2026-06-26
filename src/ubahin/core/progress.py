@@ -12,6 +12,7 @@ class ProgressInfo:
     current_item: int = 0
     total_items: int = 0
     message: str = ""
+    estimated_remaining_seconds: float | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -22,4 +23,5 @@ class ProgressInfo:
             "current_item": self.current_item,
             "total_items": self.total_items,
             "message": self.message,
+            "estimated_remaining_seconds": self.estimated_remaining_seconds,
         }
