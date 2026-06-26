@@ -14,16 +14,14 @@ from __future__ import annotations
 import json
 import logging
 import shutil
-import sys
 import threading
 import uuid
-from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from ubahin.core import JobManager, ToolType
 from ubahin.core.job import Job
-from ubahin.core.models import AppError, JobStatus
+from ubahin.core.models import AppError
 from ubahin.core.progress import ProgressInfo
 from ubahin.desktop.self_check import run_self_check
 from ubahin.native_bridge import native_status

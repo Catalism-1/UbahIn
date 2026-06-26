@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-import traceback
 from pathlib import Path
 
 from ubahin.desktop.self_check import main as self_check_main
