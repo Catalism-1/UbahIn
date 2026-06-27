@@ -95,6 +95,7 @@ def _app_info() -> dict[str, Any]:
             "start_pdf_to_jpg",
             "cancel_job",
             "get_job_status",
+            "shutdown",
         ],
     }
 
@@ -208,6 +209,8 @@ class EngineRuntime:
             return self._cancel_job(request_id, body)
         if action == "get_job_status":
             return self._get_job_status(request_id, body)
+        if action == "shutdown":
+            return _ok(request_id, {"message": "Engine ditutup dengan aman"})
         return _error(request_id, "Aksi engine tidak dikenal.", "UNKNOWN_ACTION")
 
     def _inspect_pdf_files(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
@@ -428,6 +431,14 @@ class EngineRuntime:
 
 
 def run_stdio() -> int:
+    import os
+    appdata = Path(os.environ.get("LOCALAPPDATA", "")) / "Ubahin" / "logs"
+    appdata.mkdir(parents=True, exist_ok=True)
+    try:
+        sys.stderr = open(appdata / "engine.stderr.log", "a", encoding="utf-8")
+    except Exception:
+        pass
+
     runtime = EngineRuntime()
     for raw_line in sys.stdin:
         line = raw_line.strip()
@@ -442,6 +453,10 @@ def run_stdio() -> int:
             print(traceback.format_exc(), file=sys.stderr, flush=True)
             response = _error(None, "Engine tidak dapat memproses request.")
         runtime.write_message(response)
+        
+        # Jika menerima instruksi shutdown, keluar dengan aman
+        if isinstance(payload, dict) and payload.get("action") == "shutdown":
+            return 0
     return 0
 
 

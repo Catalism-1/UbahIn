@@ -6,7 +6,40 @@ use app_log::{log_error, log_info};
 use tauri::{LogicalSize, Manager, Size};
 use tauri_plugin_window_state::{StateFlags, WindowExt};
 
+fn setup_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let mut msg = String::new();
+        if let Some(s) = info.payload().downcast_ref::<&str>() {
+            msg.push_str(s);
+        } else if let Some(s) = info.payload().downcast_ref::<String>() {
+            msg.push_str(s);
+        } else {
+            msg.push_str("Unknown panic");
+        }
+
+        let time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let local_app_data = std::env::var("LOCALAPPDATA").unwrap_or_else(|_| ".".to_string());
+        let log_dir = std::path::PathBuf::from(local_app_data).join("Ubahin").join("logs");
+        let _ = std::fs::create_dir_all(&log_dir);
+        let error_file = log_dir.join("last_error.txt");
+        let detail_log = log_dir.join("tauri.log");
+
+        let content = format!(
+            "Waktu (Unix Timestamp): {}\nArea Error: Core Application Panic\nPesan Sederhana: {}\nLokasi Log Detail: {}\n\n{}",
+            time,
+            msg,
+            detail_log.display(),
+            info
+        );
+        let _ = std::fs::write(&error_file, content);
+    }));
+}
+
 fn main() {
+    setup_panic_hook();
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())

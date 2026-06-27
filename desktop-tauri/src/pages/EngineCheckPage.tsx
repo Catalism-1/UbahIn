@@ -1,3 +1,7 @@
+import { useState, useEffect } from 'react';
+import { getVersion } from '@tauri-apps/api/app';
+import { appDataDir } from '@tauri-apps/api/path';
+import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
 import type { EngineHealth } from '../types/engine';
 import './pages.css';
 
@@ -12,10 +16,10 @@ interface EngineCheckPageProps {
 }
 
 function statusText(status: EnginePageStatus): string {
-  if (status === 'checking') return 'Engine sedang diperiksa';
-  if (status === 'ready') return 'Engine siap';
-  if (status === 'failed') return 'Engine bermasalah';
-  return 'Engine belum diperiksa';
+  if (status === 'checking') return 'Sedang diperiksa...';
+  if (status === 'ready') return 'Berjalan lancar';
+  if (status === 'failed') return 'Bermasalah';
+  return 'Belum diperiksa';
 }
 
 function available(value: boolean | undefined): string {
@@ -24,13 +28,63 @@ function available(value: boolean | undefined): string {
 }
 
 export function EngineCheckPage({ status, health, message, onCheck, onOpenLogFolder }: EngineCheckPageProps) {
+  const [appVersion, setAppVersion] = useState<string>('-');
+  const [appDataPath, setAppDataPath] = useState<string>('-');
+
+  useEffect(() => {
+    async function fetchInfo() {
+      try {
+        const v = await getVersion();
+        setAppVersion(v);
+      } catch (e) {
+        setAppVersion('Tidak diketahui');
+      }
+      try {
+        const d = await appDataDir();
+        setAppDataPath(d);
+      } catch (e) {
+        setAppDataPath('Tidak diketahui');
+      }
+    }
+    void fetchInfo();
+  }, []);
+
+  async function handleResetWindow() {
+    try {
+      const win = getCurrentWindow();
+      await win.setSize(new LogicalSize(1440, 900));
+      await win.center();
+    } catch (error) {
+      console.error('Gagal reset ukuran jendela', error);
+    }
+  }
+
+  async function handleCopyDiagnostics() {
+    const info = `Status: ${statusText(status)}
+Pesan: ${message}
+Versi Aplikasi: ${appVersion}
+Versi Engine: ${health?.engine_version ?? '-'}
+Platform: ${health?.platform ?? '-'}
+PyMuPDF: ${available(health?.pymupdf_available)}
+Pillow: ${available(health?.pillow_available)}
+PyPDF: ${available(health?.pypdf_available)}
+Native Accel: ${health?.native_acceleration ?? '-'}
+Lokasi App Data: ${appDataPath}`;
+    try {
+      await navigator.clipboard.writeText(info);
+      alert('Informasi diagnostik berhasil disalin ke clipboard.');
+    } catch (e) {
+      alert('Gagal menyalin informasi diagnostik.');
+    }
+  }
+
   return (
     <div className="page">
       <section className="panel-card" aria-labelledby="engine-title">
         <div className="panel-head">
           <div>
-            <h2 id="engine-title">Pemeriksaan Engine</h2>
-            <p>Pastikan Python engine lokal siap sebelum fitur converter dipindahkan ke React.</p>
+            <h2 id="engine-title">Diagnostik Sistem</h2>
+            <p>Informasi status engine Python dan path aplikasi lokal.</p>
           </div>
           <span className={`status-pill ${status === 'ready' ? 'ready' : status === 'failed' ? 'failed' : ''}`}>{statusText(status)}</span>
         </div>
@@ -39,17 +93,35 @@ export function EngineCheckPage({ status, health, message, onCheck, onOpenLogFol
 
         <div className="button-row">
           <button type="button" className="primary-button" onClick={onCheck} disabled={status === 'checking'}>
-            {status === 'checking' ? 'Memeriksa...' : 'Cek Engine'}
+            {status === 'checking' ? 'Memeriksa...' : 'Cek Status Engine'}
+          </button>
+          <button type="button" className="secondary-button" onClick={handleCopyDiagnostics}>
+            Salin Informasi Diagnostik
           </button>
           <button type="button" className="secondary-button" onClick={onOpenLogFolder}>
             Buka Folder Log
           </button>
+          <button type="button" className="secondary-button" onClick={handleResetWindow}>
+            Reset Ukuran Jendela
+          </button>
         </div>
 
-        <dl className="detail-grid">
+        <dl className="detail-grid" style={{ marginTop: '2rem' }}>
           <div>
-            <dt>Versi engine</dt>
+            <dt>Versi Aplikasi</dt>
+            <dd>{appVersion}</dd>
+          </div>
+          <div>
+            <dt>Versi Engine</dt>
             <dd>{health?.engine_version ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>Status Sidecar</dt>
+            <dd>{statusText(status)}</dd>
+          </div>
+          <div>
+            <dt>Lokasi App Data / Log</dt>
+            <dd style={{ wordBreak: 'break-all' }}>{appDataPath}</dd>
           </div>
           <div>
             <dt>PyMuPDF</dt>

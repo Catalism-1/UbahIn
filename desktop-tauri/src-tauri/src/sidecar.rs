@@ -88,7 +88,19 @@ impl SidecarManager {
 
     pub fn shutdown(&self) {
         if let Ok(mut child_guard) = self.child.lock() {
-            if let Some(child) = child_guard.take() {
+            if let Some(mut child) = child_guard.take() {
+                // Try sending shutdown request gracefully
+                let request_id = Uuid::new_v4().to_string();
+                let request = json!({
+                    "id": request_id,
+                    "action": "shutdown",
+                    "payload": {},
+                });
+                let line = format!("{request}\n");
+                let _ = child.write(line.as_bytes());
+                
+                // Wait briefly then kill if still alive
+                std::thread::sleep(Duration::from_millis(100));
                 let _ = child.kill();
                 log_info("engine sidecar stopped");
             }

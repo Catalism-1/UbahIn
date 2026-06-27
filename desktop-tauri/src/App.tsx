@@ -25,6 +25,7 @@ const navigationItems: NavigationItem[] = [
   { id: 'pdf', label: 'Ubah PDF', icon: 'pdf' },
   { id: 'image', label: 'Ubah Gambar', icon: 'image' },
   { id: 'history', label: 'Riwayat', icon: 'history' },
+  { id: 'engine', label: 'Diagnostik', icon: 'settings' },
   { id: 'settings', label: 'Pengaturan', icon: 'settings' },
 ];
 
@@ -34,7 +35,7 @@ const pageMeta: Record<PageId, { title: string; eyebrow: string; description: st
   image: { title: 'Ubah Gambar', eyebrow: 'Alat Gambar', description: 'Fitur gambar disiapkan setelah alur PDF stabil.' },
   history: { title: 'Riwayat', eyebrow: 'Aktivitas', description: 'Riwayat konversi lokal.' },
   settings: { title: 'Pengaturan', eyebrow: 'Preferensi', description: 'Pengaturan frontend sementara.' },
-  engine: { title: 'Pemeriksaan Engine', eyebrow: 'Diagnostik', description: 'Cek Python engine lokal.' },
+  engine: { title: 'Diagnostik Sistem', eyebrow: 'Diagnostik', description: 'Informasi status engine dan log.' },
   'merge-pdf': { title: 'Gabungkan PDF', eyebrow: 'Segera hadir', description: 'Fitur gabung PDF belum dipindahkan ke React.' },
   'compress-pdf': { title: 'Kompres PDF', eyebrow: 'Segera hadir', description: 'Fitur kompres PDF belum dipindahkan ke React.' },
   'resize-image': { title: 'Ubah Ukuran Gambar', eyebrow: 'Segera hadir', description: 'Fitur resize gambar belum dipindahkan ke React.' },
