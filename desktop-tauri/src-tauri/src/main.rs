@@ -11,6 +11,7 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
+            app.manage(sidecar::SidecarManager::new(app.handle().clone()));
             log_info("startup window: default=1440x900 min=1100x700 native_decorations=true");
 
             if let Some(window) = app.get_webview_window("main") {
@@ -46,6 +47,13 @@ fn main() {
             commands::check_engine,
             commands::app_info,
             commands::self_check,
+            commands::pick_pdf_files,
+            commands::inspect_pdf_files,
+            commands::pick_output_directory,
+            commands::start_pdf_to_jpg,
+            commands::cancel_pdf_to_jpg_job,
+            commands::open_output_directory,
+            commands::get_job_status,
             commands::open_log_folder,
             commands::log_window_event,
             commands::cancel_engine_job

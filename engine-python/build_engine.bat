@@ -19,7 +19,7 @@ if exist "%ENGINE_NAME%.spec" del /q "%ENGINE_NAME%.spec"
 "%PYTHON_EXE%" -m PyInstaller ^
   --noconfirm ^
   --clean ^
-  --onedir ^
+  --onefile ^
   --console ^
   --name "%ENGINE_NAME%" ^
   --paths ..\src ^
@@ -29,7 +29,7 @@ if exist "%ENGINE_NAME%.spec" del /q "%ENGINE_NAME%.spec"
   engine_main.py
 if errorlevel 1 exit /b 1
 
-set "EXE_PATH=%CD%\dist\%ENGINE_NAME%\%ENGINE_NAME%.exe"
+set "EXE_PATH=%CD%\dist\%ENGINE_NAME%.exe"
 if not exist "%EXE_PATH%" (
   echo Engine executable tidak ditemukan: %EXE_PATH%
   exit /b 1
