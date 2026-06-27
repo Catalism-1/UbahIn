@@ -207,6 +207,7 @@ Sudah dibuat:
 - Tahap 2B PDF ke JPG nyata dari React ke Python engine.
 - Persistent sidecar manager di Rust dengan routing response per request ID dan forwarding event job ke React.
 - Native file picker Rust untuk memilih PDF dan folder output.
+- Tahap 2C: Stabilisasi PDF ke JPG, pengenalan menu Diagnostik, perbaikan *graceful shutdown* sidecar, penambahan logging (termasuk `last_error.txt`), skrip build release otomatis `build_release_windows.bat`, dan skrip test instalasi `test_installer_windows.bat`.
 
 Belum dikerjakan:
 
@@ -214,103 +215,45 @@ Belum dikerjakan:
 - Riwayat React penuh dari SQLite.
 - Settings backend penuh untuk semua opsi.
 - Optimasi ukuran sidecar PyInstaller.
-- Validasi manual release di mesin pengguna akhir yang bersih.
 
-## Tahap 2A: React App Shell
+## Tahap 2C: Stabilisasi, Diagnostik, dan Packaging Windows
 
-Tahap 2A memindahkan app shell visual dari referensi `design/reference/ubahin.html` ke React tanpa mengubah Python engine, Rust sidecar IPC, atau protocol JSON Lines.
+Tahap ini berfokus pada membuat build release (installer) dari aplikasi Tauri yang bisa digunakan secara stand-alone di mesin pengguna Windows tanpa require node.js atau python terinstal.
 
-Yang sudah dipindahkan:
+Perubahan penting:
+1. **Sidecar Error Handling & Graceful Shutdown**: `ubahin-engine.exe` kini menerima perintah `shutdown` untuk berhenti secara bersih, `stderr` di-redirect ke file log, dan `sidecar.rs` dalam Rust memastikan *sidecar* dimatikan secara benar ketika aplikasi ditutup. Error fatal dari Tauri kini disimpan di `last_error.txt`.
+2. **Menu Diagnostik**: Halaman 'Pemeriksaan Engine' diubah menjadi halaman 'Diagnostik Sistem' yang menampilkan *app version*, lokasi instalasi, lokasi log, status berbagai fitur PyMuPDF, Pillow, pypdf, beserta tombol *Copy Diagnostic*.
+3. **Build Release Windows**: Proses build otomatis Python + Tauri disatukan dalam skrip `build_release_windows.bat` yang akan meng-output installer `.exe` di dalam folder `src-tauri/target/release/bundle/nsis/`.
+4. **Test Installer**: `test_installer_windows.bat` mensimulasikan instalasi di latar belakang (silent install), mengecek bahwa `ubahin-engine` dapat berjalan pada direktori target, kemudian melakukan *silent uninstall*.
 
-- Identitas visual Ubahin dengan palet pastel Claude:
-  `#F8F7F4`, `#FFFFFF`, `#DCD6F7`, `#CFE8D5`, `#D8E9F7`, `#F6D9C7`, `#7C9A7E`.
-- Dark mode dengan background `#1E2220`, surface `#282E2B`, accent `#A8D5AE`.
-- Sidebar menu: Beranda, Ubah PDF, Ubah Gambar, Riwayat, Pengaturan.
-- Topbar dengan judul halaman aktif, status engine ringkas, dan tombol Pemeriksaan Engine.
-- Responsive sidebar full di atas `1180px` dan compact/icon-only di bawahnya.
-- Theme preference `light`, `dark`, dan `system` disimpan sementara lewat abstraction `localStorage`.
-- Page shell untuk Beranda, Pemeriksaan Engine, Riwayat, Pengaturan, dan Coming Soon.
+### Skrip Build Release Windows
 
-Placeholder tahap ini:
-
-- PDF ke JPG masih berstatus `Segera disiapkan`.
-- Gambar ke PDF, Gabungkan PDF, Kompres PDF, Ubah Ukuran Gambar, dan PDF ke Word masih `Segera hadir`.
-- Riwayat belum membaca SQLite.
-- Pengaturan belum menyimpan ke backend Python.
-- Folder output default dan mode performa masih frontend-only.
-
-Struktur React tahap 2A:
-
-```text
-desktop-tauri/src/
-  components/AppShell/
-  components/ThemeToggle/
-  components/common/
-  hooks/useTheme.ts
-  pages/
-  styles/
-  types/navigation.ts
-```
-
-## Tahap 2B: PDF ke JPG Nyata
-
-Tahap 2B membuat fitur PDF ke JPG pertama yang berjalan dari UI React sampai converter Python lokal. React tetap tidak mengakses filesystem langsung; path dipilih lewat command Rust, lalu Python engine memeriksa dan mengonversi file melalui JSON Lines stdin/stdout.
-
-Alur:
-
-1. React memanggil `pick_pdf_files`.
-2. Rust membuka native PDF picker dan mengembalikan daftar path.
-3. React memanggil `inspect_pdf_files`.
-4. Python engine mengembalikan metadata file, jumlah halaman, dan error per file.
-5. React memanggil `pick_output_directory`.
-6. React memanggil `start_pdf_to_jpg` dengan `job_id`, file valid, output folder, preset, dan opsi.
-7. Rust sidecar manager meneruskan event progress dari Python ke React.
-8. React menampilkan progress, cancel, dan dialog hasil.
-
-Command Tauri baru:
-
-- `pick_pdf_files`
-- `inspect_pdf_files`
-- `pick_output_directory`
-- `start_pdf_to_jpg`
-- `cancel_pdf_to_jpg_job`
-- `open_output_directory`
-- `get_job_status`
-
-Opsi preset PDF ke JPG:
-
-- Standard: `150 DPI`, `JPG 80`
-- Tinggi: `200 DPI`, `JPG 90`
-- Sangat Tinggi: `300 DPI`, `JPG 95`
-
-Test engine dari source:
-
+Gunakan perintah ini untuk membuat installer resmi:
 ```bat
-cd Ubahin
-echo {"id":"inspect-1","action":"inspect_pdf_files","payload":{"paths":["C:\\path\\file.pdf"]}} | .\.venv\Scripts\python.exe engine-python\engine_main.py --stdio
+build_release_windows.bat
 ```
+Proses ini akan mengumpulkan semua dependensi Python, mem-build `ubahin-engine.exe`, menjalankan test, mengompilasi Vite (React) dengan perintah `npm run build:frontend`, lalu membungkus installer dengan `npm run tauri build`.
 
-Build sidecar:
+### Skrip Test Installer Windows
 
+Gunakan perintah ini setelah build selesai untuk mengetes hasil instalasi:
 ```bat
-cd engine-python
-build_engine.bat
+test_installer_windows.bat
 ```
+Skrip ini akan memeriksa *sidecar* dan *engine_version* dari hasil unpack *installer* `.exe` Tauri.
 
-Catatan: sidecar dibangun sebagai PyInstaller `--onefile` agar cocok dengan `externalBin` Tauri. Binary hasil build tetap tidak masuk Git.
+### Lokasi Log
+Lokasi utama *app data* dan *log*:
+- `%LOCALAPPDATA%\Ubahin\logs\tauri.log`: Log error dan aktivitas window Tauri.
+- `%LOCALAPPDATA%\Ubahin\logs\engine.stderr.log`: Log native Python stderr dari sidecar.
+- `%LOCALAPPDATA%\Ubahin\logs\last_error.txt`: Informasi ketika panic/error fatal terjadi.
 
-Test UI:
+**Troubleshooting jika Sidecar gagal dimuat:**
+1. Cek `%LOCALAPPDATA%\Ubahin\logs\engine.stderr.log` untuk melihat apakah dependensi Python gagal dimuat.
+2. Buka Menu **Diagnostik Sistem** dan cek status PyMuPDF, Pillow, pypdf, dan Native Accel.
+3. Klik tombol *Cek Status Engine*. Jika macet, hapus folder `logs` dan reset *Window*.
 
-```bat
-cd desktop-tauri
-npm run dev
-```
-
-Lalu buka `Ubah PDF`, jalankan `Pemeriksaan Engine`, pilih PDF, pilih folder output, dan klik `Mulai Ubah File`.
-
-Keterbatasan tahap 2B:
-
+Keterbatasan tahap 2B & 2C:
 - Riwayat halaman React masih placeholder.
 - Pengaturan global masih belum disimpan ke backend.
-- Gagal file per batch ditampilkan sebagai warning dan ringkasan hasil, belum menjadi halaman log terperinci di React.
 - Build sidecar onefile masih besar karena PyInstaller menarik dependency dari environment; ini target optimasi tahap berikutnya.
