@@ -62,7 +62,14 @@ class JobManager:
             except Exception:
                 self.logger.exception("Callback gagal: %s", event_name)
 
-    def create_job(self, tool_type: ToolType | str, input_files: list[str | Path], output_folder: str | Path, **params: object) -> Job:
+    def create_job(
+        self,
+        tool_type: ToolType | str,
+        input_files: list[str | Path],
+        output_folder: str | Path,
+        job_id: str | None = None,
+        **params: object,
+    ) -> Job:
         tool = ToolType(tool_type)
         performance = params.pop("performance_mode", "seimbang")
         options = JobOptions(
@@ -71,7 +78,11 @@ class JobManager:
             create_zip=bool(params.pop("create_zip", False)),
             params=dict(params),
         )
-        job = Job(tool_type=tool, input_files=[Path(path).expanduser().resolve() for path in input_files], options=options)
+        resolved_input_files = [Path(path).expanduser().resolve() for path in input_files]
+        if job_id:
+            job = Job(tool_type=tool, input_files=resolved_input_files, options=options, job_id=job_id)
+        else:
+            job = Job(tool_type=tool, input_files=resolved_input_files, options=options)
         with self._lock:
             self._jobs[job.job_id] = job
         return job
