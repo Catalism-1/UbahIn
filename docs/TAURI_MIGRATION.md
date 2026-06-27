@@ -178,11 +178,50 @@ Sudah dibuat:
 - Rust command `check_engine`, `app_info`, `self_check`, dan `open_log_folder`.
 - Timeout health check 10 detik.
 - Logging error Tauri ke `%LOCALAPPDATA%\Ubahin\logs\tauri.log`.
+- Tahap 2A app shell React dari arah visual desain Claude.
+- Sidebar, topbar, theme manager, dan halaman placeholder modular.
+- Halaman Pemeriksaan Engine dipindahkan ke komponen React modular tanpa mengubah command `check_engine`.
 
 Belum dikerjakan:
 
-- Memindahkan desain Claude.
+- Memindahkan halaman final desain Claude seperti PDF ke JPG.
 - Memindahkan halaman PDF ke JPG ke React.
 - Command `start_pdf_to_jpg`.
 - Progress conversion dari Python ke React.
 - Packaging final yang sudah divalidasi penuh di mesin release.
+
+## Tahap 2A: React App Shell
+
+Tahap 2A memindahkan app shell visual dari referensi `design/reference/ubahin.html` ke React tanpa mengubah Python engine, Rust sidecar IPC, atau protocol JSON Lines.
+
+Yang sudah dipindahkan:
+
+- Identitas visual Ubahin dengan palet pastel Claude:
+  `#F8F7F4`, `#FFFFFF`, `#DCD6F7`, `#CFE8D5`, `#D8E9F7`, `#F6D9C7`, `#7C9A7E`.
+- Dark mode dengan background `#1E2220`, surface `#282E2B`, accent `#A8D5AE`.
+- Sidebar menu: Beranda, Ubah PDF, Ubah Gambar, Riwayat, Pengaturan.
+- Topbar dengan judul halaman aktif, status engine ringkas, dan tombol Pemeriksaan Engine.
+- Responsive sidebar full di atas `1180px` dan compact/icon-only di bawahnya.
+- Theme preference `light`, `dark`, dan `system` disimpan sementara lewat abstraction `localStorage`.
+- Page shell untuk Beranda, Pemeriksaan Engine, Riwayat, Pengaturan, dan Coming Soon.
+
+Placeholder tahap ini:
+
+- PDF ke JPG masih berstatus `Segera disiapkan`.
+- Gambar ke PDF, Gabungkan PDF, Kompres PDF, Ubah Ukuran Gambar, dan PDF ke Word masih `Segera hadir`.
+- Riwayat belum membaca SQLite.
+- Pengaturan belum menyimpan ke backend Python.
+- Folder output default dan mode performa masih frontend-only.
+
+Struktur React tahap 2A:
+
+```text
+desktop-tauri/src/
+  components/AppShell/
+  components/ThemeToggle/
+  components/common/
+  hooks/useTheme.ts
+  pages/
+  styles/
+  types/navigation.ts
+```

@@ -1,9 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { AppShell } from './components/AppShell/AppShell';
+import { useTheme } from './hooks/useTheme';
+import { ComingSoonPage } from './pages/ComingSoonPage';
+import { EngineCheckPage } from './pages/EngineCheckPage';
+import { HistoryPage } from './pages/HistoryPage';
+import { HomePage } from './pages/HomePage';
+import { SettingsPage } from './pages/SettingsPage';
 import { cancelEngineJob, checkEngine, logWindowEvent, openLogFolder } from './services/engine';
 import type { EngineHealth } from './types/engine';
+import type { EngineStatus, NavigationItem, PageId } from './types/navigation';
 
-type Status = 'idle' | 'checking' | 'ready' | 'failed';
+type EnginePageStatus = 'idle' | 'checking' | 'ready' | 'failed';
 
 interface RuntimeState {
   isEngineCheckRunning: boolean;
@@ -11,23 +19,46 @@ interface RuntimeState {
   isConversionRunning: boolean;
 }
 
-const navigationItems = ['Engine', 'PDF', 'Gambar', 'Riwayat', 'Pengaturan'];
+const navigationItems: NavigationItem[] = [
+  { id: 'home', label: 'Beranda', icon: 'home' },
+  { id: 'pdf', label: 'Ubah PDF', icon: 'pdf' },
+  { id: 'image', label: 'Ubah Gambar', icon: 'image' },
+  { id: 'history', label: 'Riwayat', icon: 'history' },
+  { id: 'settings', label: 'Pengaturan', icon: 'settings' },
+];
 
-function statusText(status: Status): string {
-  if (status === 'checking') return 'Engine sedang diperiksa';
-  if (status === 'ready') return 'Engine siap';
-  if (status === 'failed') return 'Engine gagal';
-  return 'Engine belum diperiksa';
+const pageMeta: Record<PageId, { title: string; eyebrow: string; description: string }> = {
+  home: { title: 'Beranda', eyebrow: 'Ringkasan', description: 'Pilih alat yang kamu butuhkan.' },
+  pdf: { title: 'Ubah PDF', eyebrow: 'Alat PDF', description: 'Halaman PDF ke JPG akan dipindahkan pada tahap berikutnya.' },
+  image: { title: 'Ubah Gambar', eyebrow: 'Alat Gambar', description: 'Fitur gambar disiapkan setelah alur PDF stabil.' },
+  history: { title: 'Riwayat', eyebrow: 'Aktivitas', description: 'Riwayat konversi lokal.' },
+  settings: { title: 'Pengaturan', eyebrow: 'Preferensi', description: 'Pengaturan frontend sementara.' },
+  engine: { title: 'Pemeriksaan Engine', eyebrow: 'Diagnostik', description: 'Cek Python engine lokal.' },
+  'merge-pdf': { title: 'Gabungkan PDF', eyebrow: 'Segera hadir', description: 'Fitur gabung PDF belum dipindahkan ke React.' },
+  'compress-pdf': { title: 'Kompres PDF', eyebrow: 'Segera hadir', description: 'Fitur kompres PDF belum dipindahkan ke React.' },
+  'resize-image': { title: 'Ubah Ukuran Gambar', eyebrow: 'Segera hadir', description: 'Fitur resize gambar belum dipindahkan ke React.' },
+  'pdf-word': { title: 'PDF ke Word', eyebrow: 'Segera hadir', description: 'Fitur PDF ke Word belum dipindahkan ke React.' },
+};
+
+function shellEngineStatus(status: EnginePageStatus): EngineStatus {
+  if (status === 'ready') return 'ready';
+  if (status === 'failed') return 'error';
+  if (status === 'checking') return 'checking';
+  return 'unchecked';
 }
 
 export default function App() {
-  const [status, setStatus] = useState<Status>('idle');
+  const { preference, setPreference } = useTheme();
+  const [activePage, setActivePage] = useState<PageId>('home');
+  const [engineStatus, setEngineStatus] = useState<EnginePageStatus>('idle');
   const [health, setHealth] = useState<EngineHealth | null>(null);
-  const [message, setMessage] = useState<string>('');
+  const [message, setMessage] = useState('');
   const [isEngineCheckRunning, setIsEngineCheckRunning] = useState(false);
   const [activeJobId] = useState<string | null>(null);
   const [isConversionRunning] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const [performanceMode, setPerformanceMode] = useState('Seimbang');
+  const [openFolderAfterFinish, setOpenFolderAfterFinish] = useState(true);
   const runtimeRef = useRef<RuntimeState>({
     isEngineCheckRunning: false,
     activeJobId: null,
@@ -54,9 +85,7 @@ export default function App() {
           `close_requested engineCheck=${runtime.isEngineCheckRunning} conversion=${runtime.isConversionRunning} job=${runtime.activeJobId ?? 'none'}`,
         );
 
-        if (forceClosingRef.current) {
-          return;
-        }
+        if (forceClosingRef.current) return;
 
         if (runtime.isConversionRunning) {
           event.preventDefault();
@@ -86,23 +115,27 @@ export default function App() {
     };
   }, []);
 
+  const meta = pageMeta[activePage];
+  const statusForShell = useMemo(() => shellEngineStatus(engineStatus), [engineStatus]);
+
   async function handleCheckEngine() {
+    setActivePage('engine');
     setIsEngineCheckRunning(true);
-    setStatus('checking');
+    setEngineStatus('checking');
     setMessage('');
     setHealth(null);
     try {
       const response = await checkEngine();
       if (response.ok && response.data) {
         setHealth(response.data);
-        setStatus('ready');
+        setEngineStatus('ready');
         return;
       }
       setMessage(response.error?.message ?? 'Engine tidak siap.');
-      setStatus('failed');
+      setEngineStatus('failed');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Engine tidak dapat dijalankan.');
-      setStatus('failed');
+      setEngineStatus('failed');
     } finally {
       setIsEngineCheckRunning(false);
     }
@@ -113,7 +146,7 @@ export default function App() {
       await openLogFolder();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Folder log tidak dapat dibuka.');
-      setStatus('failed');
+      setEngineStatus('failed');
     }
   }
 
@@ -127,107 +160,66 @@ export default function App() {
     }
   }
 
+  function renderPage() {
+    if (activePage === 'home') return <HomePage onNavigate={setActivePage} />;
+    if (activePage === 'engine') {
+      return (
+        <EngineCheckPage
+          status={engineStatus}
+          health={health}
+          message={message}
+          onCheck={handleCheckEngine}
+          onOpenLogFolder={handleOpenLogFolder}
+        />
+      );
+    }
+    if (activePage === 'history') return <HistoryPage />;
+    if (activePage === 'settings') {
+      return (
+        <SettingsPage
+          theme={preference}
+          performanceMode={performanceMode}
+          openFolderAfterFinish={openFolderAfterFinish}
+          onThemeChange={setPreference}
+          onPerformanceModeChange={setPerformanceMode}
+          onOpenFolderAfterFinishChange={setOpenFolderAfterFinish}
+        />
+      );
+    }
+    return <ComingSoonPage title={meta.title} description={meta.description} onNavigate={setActivePage} />;
+  }
+
   return (
-    <main className="app-shell">
-      <aside className="sidebar" aria-label="Navigasi utama">
-        <div className="brand">
-          <span className="brand-mark">U</span>
-          <div className="brand-copy">
-            <strong>Ubahin</strong>
-            <span>Desktop</span>
-          </div>
-        </div>
-        <nav className="nav-list" aria-label="Bagian aplikasi">
-          {navigationItems.map((item) => (
-            <button
-              key={item}
-              type="button"
-              className={item === 'Engine' ? 'nav-item active' : 'nav-item'}
-              aria-current={item === 'Engine' ? 'page' : undefined}
-            >
-              <span aria-hidden="true">{item.charAt(0)}</span>
-              <strong>{item}</strong>
-            </button>
-          ))}
-        </nav>
-      </aside>
-
-      <section className="workspace">
-        <header className="workspace-header">
-          <div>
-            <p className="eyebrow">Ubahin</p>
-            <h1>Ubah file jadi lebih mudah.</h1>
-          </div>
-          <p>Bukti arsitektur Tauri + React + Python engine.</p>
-        </header>
-
-        <div className="content-scroll">
-          <section className="panel" aria-labelledby="engine-title">
-            <div className="panel-head">
-              <div>
-                <h2 id="engine-title">Pemeriksaan Engine</h2>
-                <p>{statusText(status)}</p>
-              </div>
-              <span className={`status ${status}`}>{statusText(status)}</span>
-            </div>
-
-            {message ? <div className="notice">{message}</div> : null}
-
-            <div className="actions">
-              <button type="button" onClick={handleCheckEngine} disabled={status === 'checking'}>
-                {status === 'checking' ? 'Memeriksa...' : 'Cek Engine'}
-              </button>
-              <button type="button" className="secondary" onClick={handleOpenLogFolder}>
-                Buka Folder Log
-              </button>
-            </div>
-
-            <dl className="details">
-              <div>
-                <dt>Versi engine</dt>
-                <dd>{health?.engine_version ?? '-'}</dd>
-              </div>
-              <div>
-                <dt>PyMuPDF</dt>
-                <dd>{health ? (health.pymupdf_available ? 'Tersedia' : 'Tidak tersedia') : '-'}</dd>
-              </div>
-              <div>
-                <dt>Pillow</dt>
-                <dd>{health ? (health.pillow_available ? 'Tersedia' : 'Tidak tersedia') : '-'}</dd>
-              </div>
-              <div>
-                <dt>pypdf</dt>
-                <dd>{health ? (health.pypdf_available ? 'Tersedia' : 'Tidak tersedia') : '-'}</dd>
-              </div>
-              <div>
-                <dt>Native acceleration</dt>
-                <dd>{health?.native_acceleration ?? '-'}</dd>
-              </div>
-              <div>
-                <dt>Platform</dt>
-                <dd>{health?.platform ?? '-'}</dd>
-              </div>
-            </dl>
-          </section>
-        </div>
-      </section>
+    <>
+      <AppShell
+        activePage={activePage}
+        title={meta.title}
+        eyebrow={meta.eyebrow}
+        engineStatus={statusForShell}
+        theme={preference}
+        navigationItems={navigationItems}
+        onThemeChange={setPreference}
+        onNavigate={setActivePage}
+      >
+        {renderPage()}
+      </AppShell>
 
       {showCloseDialog ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="modal" role="dialog" aria-modal="true" aria-labelledby="close-dialog-title">
+        <div className="app-modal-root" role="presentation">
+          <section className="app-modal" role="dialog" aria-modal="true" aria-labelledby="close-dialog-title">
             <h2 id="close-dialog-title">Konversi masih berjalan</h2>
             <p>Menutup aplikasi akan membatalkan proses yang sedang berjalan. File yang sudah selesai tetap tersimpan.</p>
-            <div className="modal-actions">
-              <button type="button" className="secondary" onClick={() => setShowCloseDialog(false)}>
+            <div className="button-row" style={{ justifyContent: 'flex-end', marginTop: 24 }}>
+              <button type="button" className="secondary-button" onClick={() => setShowCloseDialog(false)}>
                 Lanjutkan Konversi
               </button>
-              <button type="button" onClick={handleCancelAndClose}>
+              <button type="button" className="primary-button" onClick={handleCancelAndClose}>
                 Batalkan dan Tutup
               </button>
             </div>
           </section>
         </div>
       ) : null}
-    </main>
+    </>
   );
 }

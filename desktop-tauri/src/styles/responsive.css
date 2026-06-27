@@ -1,0 +1,12 @@
+@media (max-width: 1180px) {
+  :root {
+    --app-sidebar-width: 76px;
+  }
+}
+
+@media (max-height: 760px) {
+  :root {
+    --app-page-padding: 22px;
+    --app-topbar-height: 72px;
+  }
+}
