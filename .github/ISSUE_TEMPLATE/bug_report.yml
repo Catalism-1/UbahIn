@@ -1,0 +1,74 @@
+name: Bug Report
+description: Laporkan masalah atau error pada Ubahin.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Terima kasih telah melaporkan bug. Harap isi form di bawah ini dengan jelas.
+  - type: input
+    id: version
+    attributes:
+      label: Versi Ubahin
+      description: Contoh: v0.1.1-beta
+    validations:
+      required: true
+  - type: input
+    id: windows_version
+    attributes:
+      label: Versi Windows
+      description: Contoh: Windows 11 23H2 x64
+    validations:
+      required: true
+  - type: dropdown
+    id: install_type
+    attributes:
+      label: Jenis Instalasi
+      options:
+        - Installer
+        - Portable
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Langkah untuk mengulang masalah
+      description: Apa yang Anda lakukan sampai error terjadi?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Hasil yang diharapkan
+      description: Apa yang seharusnya terjadi?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Hasil yang terjadi
+      description: Apa yang sebenarnya terjadi (error/crash)?
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot (Opsional)
+      description: Tarik dan lepas gambar ke sini jika ada.
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Isi Log (Opsional)
+      description: Paste isi log dari %LOCALAPPDATA%\Ubahin\logs atau lampirkan file log.
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Persetujuan
+      options:
+        - label: Saya setuju untuk tidak mengunggah dokumen pribadi atau data sensitif ke laporan ini.
+          required: true

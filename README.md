@@ -1,21 +1,47 @@
-# Ubahin
+# Ubahin: Konverter File Lokal Super Cepat
 
-Ubahin adalah backend converter file lokal/offline untuk Windows. Release candidate lokal `0.1.1` fokus pada hal paling dasar untuk distribusi: aplikasi bisa di-build, diinstal, dibuka, dan diuji di laptop Windows 10/11 64-bit.
+Ubahin adalah aplikasi backend konverter file PDF ke gambar (JPG) secara offline dan aman untuk Windows. Semua proses dilakukan langsung di dalam komputer Anda tanpa perlu koneksi internet, memastikan privasi dokumen Anda terjaga.
 
-Tahap ini belum memasang GUI final Claude. `Ubahin.exe` sekarang membuka UI demo sementara untuk mencoba konversi PDF ke JPG secara nyata.
+[![Latest Release](https://img.shields.io/github/v/release/Catalism-1/UbahIn?label=Release)](https://github.com/Catalism-1/UbahIn/releases/latest)
+[![Windows 10/11 x64](https://img.shields.io/badge/OS-Windows%2010%20%7C%2011%20x64-blue?logo=windows)](#)
 
-## Install untuk Pengguna
+[**⬇️ Download untuk Windows**](https://github.com/Catalism-1/UbahIn/releases/latest)
 
-1. Jalankan `Ubahin_Setup.exe`.
-2. Klik Install.
-3. Klik Finish.
-4. Ubahin langsung terbuka.
-5. Lain kali buka lewat shortcut Desktop atau Start Menu.
+## Fitur
+
+- Konversi PDF ke JPG secara lokal/offline.
+- Pilihan kualitas Standard, Tinggi, dan Sangat Tinggi.
+- Dukungan antrean konversi file hingga 50 dokumen sekaligus.
+- Indikator progres yang real-time dan opsi pembatalan.
+- Mengekspor hasil konversi ke dalam satu file ZIP secara otomatis.
+- Installer mandiri atau versi portable.
+
+## Cara Instalasi
+
+1. Kunjungi [halaman rilis terbaru](https://github.com/Catalism-1/UbahIn/releases/latest).
+2. Unduh `Ubahin_Setup.exe`.
+3. Jalankan file yang diunduh.
+4. Klik **Install** dan kemudian klik **Finish** setelah selesai.
+5. Aplikasi Ubahin akan langsung terbuka, atau dapat diakses lewat shortcut Desktop atau Start Menu.
+
+## Privasi
+
+Ubahin memproses file secara lokal di perangkat pengguna. Aplikasi tidak mengunggah dokumen ke server.
+
+## Status Pengembangan
+
+Ini adalah versi `0.1.1-beta`. Beberapa fitur utama sudah berjalan dengan stabil, seperti fungsi dasar konversi PDF ke JPG. Beberapa pembaruan antarmuka (GUI) dan fitur tambahan masih dalam tahap pengembangan aktif.
+
+## Cara Melaporkan Bug
+
+Bila Anda menemukan masalah atau error, silakan buat *Issue* di GitHub dengan cara:
+1. Buka tab [Issues](https://github.com/Catalism-1/UbahIn/issues).
+2. Klik **New Issue** dan pilih template **Bug Report**.
+3. Isi informasi yang diperlukan sesuai dengan form yang muncul.
+
 
 ## Yang Ada Saat Ini
 
-- UI demo sementara berbasis Tkinter untuk PDF ke JPG.
-- Antrean PDF, preset kualitas, progress konversi, batal proses, ZIP hasil, dan dialog ringkasan.
 - CLI backend lama tetap tersedia melalui `ubahin.cli`.
 - Self-check internal: `Ubahin.exe --self-check --silent`.
 - Startup diagnostics ke `%LOCALAPPDATA%\Ubahin\logs\startup.log`.
