@@ -53,10 +53,10 @@ cd engine-python
 echo {"id":"request-1","action":"health"} | ..\.venv\Scripts\python.exe engine_main.py --stdio
 ```
 
-Response sukses:
+Response sukses tahap awal:
 
 ```json
-{"id":"request-1","ok":true,"data":{"engine_version":"0.1.1","python_available":true,"pymupdf_available":true,"pillow_available":true,"pypdf_available":true,"native_acceleration":"fallback","platform":"windows"}}
+{"type":"response","id":"request-1","ok":true,"data":{"engine_version":"0.1.1","python_available":true,"pymupdf_available":true,"pillow_available":true,"pypdf_available":true,"native_acceleration":"fallback","platform":"windows"}}
 ```
 
 ## Build Engine Sidecar
@@ -154,13 +154,13 @@ Setiap request adalah satu JSON object per baris:
 Response sukses:
 
 ```json
-{"id":"request-1","ok":true,"data":{}}
+{"type":"response","id":"request-1","ok":true,"data":{}}
 ```
 
 Response error:
 
 ```json
-{"id":"request-1","ok":false,"error":{"code":"ENGINE_ERROR","message":"Pesan sederhana berbahasa Indonesia"}}
+{"type":"response","id":"request-1","ok":false,"error":{"code":"ENGINE_ERROR","message":"Pesan sederhana berbahasa Indonesia"}}
 ```
 
 Action tahap 1:
@@ -168,6 +168,29 @@ Action tahap 1:
 - `health`
 - `app_info`
 - `self_check`
+
+Action tahap 2B:
+
+- `inspect_pdf_files`
+- `start_pdf_to_jpg`
+- `cancel_job`
+- `get_job_status`
+
+Event engine tahap 2B:
+
+```json
+{"type":"event","event":"progress","job_id":"job-1","data":{"overall_percent":42}}
+```
+
+Event yang diteruskan Rust ke React:
+
+- `engine://job-started`
+- `engine://progress`
+- `engine://file-completed`
+- `engine://job-completed`
+- `engine://job-failed`
+- `engine://job-cancelled`
+- `engine://warning`
 
 ## Status Tahap Migrasi
 
@@ -181,14 +204,17 @@ Sudah dibuat:
 - Tahap 2A app shell React dari arah visual desain Claude.
 - Sidebar, topbar, theme manager, dan halaman placeholder modular.
 - Halaman Pemeriksaan Engine dipindahkan ke komponen React modular tanpa mengubah command `check_engine`.
+- Tahap 2B PDF ke JPG nyata dari React ke Python engine.
+- Persistent sidecar manager di Rust dengan routing response per request ID dan forwarding event job ke React.
+- Native file picker Rust untuk memilih PDF dan folder output.
 
 Belum dikerjakan:
 
-- Memindahkan halaman final desain Claude seperti PDF ke JPG.
-- Memindahkan halaman PDF ke JPG ke React.
-- Command `start_pdf_to_jpg`.
-- Progress conversion dari Python ke React.
-- Packaging final yang sudah divalidasi penuh di mesin release.
+- Memindahkan desain/fungsi final untuk tool selain PDF ke JPG.
+- Riwayat React penuh dari SQLite.
+- Settings backend penuh untuk semua opsi.
+- Optimasi ukuran sidecar PyInstaller.
+- Validasi manual release di mesin pengguna akhir yang bersih.
 
 ## Tahap 2A: React App Shell
 
@@ -225,3 +251,66 @@ desktop-tauri/src/
   styles/
   types/navigation.ts
 ```
+
+## Tahap 2B: PDF ke JPG Nyata
+
+Tahap 2B membuat fitur PDF ke JPG pertama yang berjalan dari UI React sampai converter Python lokal. React tetap tidak mengakses filesystem langsung; path dipilih lewat command Rust, lalu Python engine memeriksa dan mengonversi file melalui JSON Lines stdin/stdout.
+
+Alur:
+
+1. React memanggil `pick_pdf_files`.
+2. Rust membuka native PDF picker dan mengembalikan daftar path.
+3. React memanggil `inspect_pdf_files`.
+4. Python engine mengembalikan metadata file, jumlah halaman, dan error per file.
+5. React memanggil `pick_output_directory`.
+6. React memanggil `start_pdf_to_jpg` dengan `job_id`, file valid, output folder, preset, dan opsi.
+7. Rust sidecar manager meneruskan event progress dari Python ke React.
+8. React menampilkan progress, cancel, dan dialog hasil.
+
+Command Tauri baru:
+
+- `pick_pdf_files`
+- `inspect_pdf_files`
+- `pick_output_directory`
+- `start_pdf_to_jpg`
+- `cancel_pdf_to_jpg_job`
+- `open_output_directory`
+- `get_job_status`
+
+Opsi preset PDF ke JPG:
+
+- Standard: `150 DPI`, `JPG 80`
+- Tinggi: `200 DPI`, `JPG 90`
+- Sangat Tinggi: `300 DPI`, `JPG 95`
+
+Test engine dari source:
+
+```bat
+cd Ubahin
+echo {"id":"inspect-1","action":"inspect_pdf_files","payload":{"paths":["C:\\path\\file.pdf"]}} | .\.venv\Scripts\python.exe engine-python\engine_main.py --stdio
+```
+
+Build sidecar:
+
+```bat
+cd engine-python
+build_engine.bat
+```
+
+Catatan: sidecar dibangun sebagai PyInstaller `--onefile` agar cocok dengan `externalBin` Tauri. Binary hasil build tetap tidak masuk Git.
+
+Test UI:
+
+```bat
+cd desktop-tauri
+npm run dev
+```
+
+Lalu buka `Ubah PDF`, jalankan `Pemeriksaan Engine`, pilih PDF, pilih folder output, dan klik `Mulai Ubah File`.
+
+Keterbatasan tahap 2B:
+
+- Riwayat halaman React masih placeholder.
+- Pengaturan global masih belum disimpan ke backend.
+- Gagal file per batch ditampilkan sebagai warning dan ringkasan hasil, belum menjadi halaman log terperinci di React.
+- Build sidecar onefile masih besar karena PyInstaller menarik dependency dari environment; ini target optimasi tahap berikutnya.

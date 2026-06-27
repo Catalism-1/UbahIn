@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { AppShell } from './components/AppShell/AppShell';
 import { useTheme } from './hooks/useTheme';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { EngineCheckPage } from './pages/EngineCheckPage';
 import { HistoryPage } from './pages/HistoryPage';
+import { PdfToJpgPage } from './pages/PdfToJpgPage/PdfToJpgPage';
 import { HomePage } from './pages/HomePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { cancelEngineJob, checkEngine, logWindowEvent, openLogFolder } from './services/engine';
@@ -29,7 +30,7 @@ const navigationItems: NavigationItem[] = [
 
 const pageMeta: Record<PageId, { title: string; eyebrow: string; description: string }> = {
   home: { title: 'Beranda', eyebrow: 'Ringkasan', description: 'Pilih alat yang kamu butuhkan.' },
-  pdf: { title: 'Ubah PDF', eyebrow: 'Alat PDF', description: 'Halaman PDF ke JPG akan dipindahkan pada tahap berikutnya.' },
+  pdf: { title: 'PDF ke JPG', eyebrow: 'Alat PDF', description: 'Ubah halaman PDF menjadi gambar JPG.' },
   image: { title: 'Ubah Gambar', eyebrow: 'Alat Gambar', description: 'Fitur gambar disiapkan setelah alur PDF stabil.' },
   history: { title: 'Riwayat', eyebrow: 'Aktivitas', description: 'Riwayat konversi lokal.' },
   settings: { title: 'Pengaturan', eyebrow: 'Preferensi', description: 'Pengaturan frontend sementara.' },
@@ -54,8 +55,8 @@ export default function App() {
   const [health, setHealth] = useState<EngineHealth | null>(null);
   const [message, setMessage] = useState('');
   const [isEngineCheckRunning, setIsEngineCheckRunning] = useState(false);
-  const [activeJobId] = useState<string | null>(null);
-  const [isConversionRunning] = useState(false);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [isConversionRunning, setIsConversionRunning] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [performanceMode, setPerformanceMode] = useState('Seimbang');
   const [openFolderAfterFinish, setOpenFolderAfterFinish] = useState(true);
@@ -153,15 +154,28 @@ export default function App() {
   async function handleCancelAndClose() {
     setShowCloseDialog(false);
     try {
-      await cancelEngineJob(activeJobId);
+      await Promise.race([
+        cancelEngineJob(activeJobId),
+        new Promise<void>((resolve) => {
+          window.setTimeout(resolve, 5000);
+        }),
+      ]);
     } finally {
       forceClosingRef.current = true;
       await getCurrentWindow().close();
     }
   }
 
+  const handlePdfJobStateChange = useCallback((state: { activeJobId: string | null; isConversionRunning: boolean }) => {
+    setActiveJobId(state.activeJobId);
+    setIsConversionRunning(state.isConversionRunning);
+  }, []);
+
   function renderPage() {
     if (activePage === 'home') return <HomePage onNavigate={setActivePage} />;
+    if (activePage === 'pdf') {
+      return <PdfToJpgPage isEngineReady={engineStatus === 'ready'} onJobStateChange={handlePdfJobStateChange} />;
+    }
     if (activePage === 'engine') {
       return (
         <EngineCheckPage
