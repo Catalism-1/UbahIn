@@ -101,6 +101,48 @@ npm run build
 
 Hasil installer Tauri berada di folder target Tauri setelah build selesai.
 
+## Window Behavior
+
+Window utama memakai title bar native Windows, bukan custom title bar. Konfigurasi tahap ini:
+
+- Label window: `main`
+- Title: `Ubahin`
+- Default size: `1440x900`
+- Minimum size: `1100x700`
+- Resizable: aktif
+- Minimize, maximize, restore, close: aktif
+- Decorations: aktif, agar Windows Snap Layout tetap tersedia
+- Startup visibility: `false`, lalu window ditampilkan setelah restore state
+
+Tidak ada `maxWidth` atau `maxHeight`, sehingga window tetap bisa diperbesar mengikuti monitor pengguna.
+
+## Persistent Window State
+
+Tauri memakai plugin resmi `tauri-plugin-window-state` untuk menyimpan dan memulihkan:
+
+- ukuran window terakhir,
+- posisi window terakhir,
+- status maximize.
+
+Saat startup, aplikasi mencoba restore state lebih dulu. Jika restore gagal, window memakai fallback `1440x900` dan diposisikan ke tengah layar. Error restore ditulis ke:
+
+```text
+%LOCALAPPDATA%\Ubahin\logs\tauri.log
+```
+
+## Reset Window State
+
+Jika layout window tersimpan rusak, reset hanya state window dari app data Tauri/Ubahin. Jangan hapus folder settings, history, database, atau log engine kecuali memang dibutuhkan.
+
+Langkah aman:
+
+1. Tutup Ubahin.
+2. Buka folder app data Ubahin di `%APPDATA%`, `%LOCALAPPDATA%`, atau folder data Tauri sesuai hasil build.
+3. Hapus file state yang terkait window, biasanya bernama seperti `window-state.json` atau berada di folder data aplikasi Tauri.
+4. Jalankan Ubahin lagi.
+
+Aplikasi akan kembali memakai fallback `1440x900` di tengah layar bila state tidak ditemukan atau tidak valid.
+
 ## Protocol JSON Lines
 
 Setiap request adalah satu JSON object per baris:

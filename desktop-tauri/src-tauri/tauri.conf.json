@@ -12,11 +12,20 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Ubahin",
-        "width": 1000,
-        "height": 700,
-        "minWidth": 760,
-        "minHeight": 540
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1100,
+        "minHeight": 700,
+        "resizable": true,
+        "maximizable": true,
+        "minimizable": true,
+        "closable": true,
+        "decorations": true,
+        "visible": false,
+        "center": true,
+        "focus": true
       }
     ],
     "security": {
