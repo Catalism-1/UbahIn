@@ -70,6 +70,22 @@ dist\Ubahin\Ubahin.exe --self-check --silent
 
 Self-check memeriksa app data, folder log, SQLite history, PyMuPDF, Pillow, pypdf, dan status native module opsional.
 
+## Menjalankan Test
+
+```bat
+run_tests.bat
+```
+
+Script ini menjalankan pytest dengan temporary folder lokal `.pytest_tmp` agar stabil di Windows dan tidak bergantung pada permission folder `%TEMP%`.
+
+Perintah standar juga dapat dipakai:
+
+```bat
+python -m pytest
+```
+
+Konfigurasi pytest di `pyproject.toml` memakai `.pytest_tmp` sebagai base temp. Folder tersebut diabaikan Git dan aman dihapus setelah test selesai.
+
 ## Build Debug
 
 ```bat

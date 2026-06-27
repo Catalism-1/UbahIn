@@ -19,7 +19,7 @@ jobs:
       - name: Lint
         run: python -m ruff check src tests
       - name: Test
-        run: python -m pytest
+        run: .\run_tests.bat
       - name: Smoke import
         env:
           PYTHONPATH: src

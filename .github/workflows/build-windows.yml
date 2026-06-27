@@ -38,7 +38,7 @@ jobs:
             Write-Host "Native wheel not found; continuing with Python fallback."
           }
       - name: Test
-        run: python -m pytest
+        run: .\run_tests.bat
       - name: Build portable
         run: .\build_portable.bat
       - name: Build installer

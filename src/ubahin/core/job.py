@@ -66,7 +66,14 @@ class Job:
             "result": {
                 "output_paths": [str(path) for path in self.result.output_paths],
                 "errors": list(self.result.errors),
+                "warnings": list(self.result.warnings),
                 "message": self.result.message,
+                "successful_files": self.result.successful_files,
+                "failed_files": self.result.failed_files,
+                "skipped_files": self.result.skipped_files,
+                "total_input_files": self.result.total_input_files,
+                "processed_files": self.result.processed_files,
+                "completed_files": self.result.completed_files,
             }
             if self.result
             else None,

@@ -141,18 +141,9 @@ class DesktopBridge:
             outputs = list(result.output_paths) if result else []
             self._last_output_folder = job.options.output_dir
             warnings = list(job.warnings) if job.warnings else []
-            self._dispatch(
-                "job_completed",
-                {
-                    "job_id": job.job_id,
-                    "completed_files": len(job.input_files),
-                    "total_outputs": len(outputs),
-                    "output_folder": str(job.options.output_dir),
-                    "duration_seconds": job.duration,
-                    "warnings": warnings,
-                },
-            )
-            # File-level result mapping for the activity log
+            failed_files = result.failed_files if result else 0
+            successful_files = result.successful_files if result else len(job.input_files)
+            jpg_outputs = [path for path in outputs if Path(path).suffix.lower() in {".jpg", ".jpeg"}]
             if result is not None:
                 for fr in result.file_results:
                     payload = {
@@ -160,17 +151,49 @@ class DesktopBridge:
                         "output_count": len(fr.output_paths),
                     }
                     if fr.status == "failed":
-                        payload["error"] = fr.error or "Tidak diketahui"
+                        payload["error"] = fr.error or "Tidak dapat diproses"
                         self._dispatch("file_failed", payload)
-                    else:
+                    elif fr.status == "completed":
                         self._dispatch("file_completed", payload)
+            self._dispatch(
+                "job_completed",
+                {
+                    "job_id": job.job_id,
+                    "status": job.status.value,
+                    "completed_files": successful_files,
+                    "failed_files": failed_files,
+                    "skipped_files": result.skipped_files if result else 0,
+                    "total_input_files": result.total_input_files if result else len(job.input_files),
+                    "processed_files": result.processed_files if result else len(job.input_files),
+                    "total_outputs": len(outputs),
+                    "total_images": len(jpg_outputs),
+                    "output_folder": str(job.options.output_dir),
+                    "duration_seconds": job.duration,
+                    "warnings": warnings,
+                },
+            )
 
         def on_failed(job: Job) -> None:
+            result = job.result
+            if result is not None:
+                for fr in result.file_results:
+                    if fr.status == "failed":
+                        self._dispatch(
+                            "file_failed",
+                            {
+                                "filename": fr.input_path.name,
+                                "output_count": len(fr.output_paths),
+                                "error": fr.error or "Tidak dapat diproses",
+                            },
+                        )
             self._dispatch(
                 "job_failed",
                 {
                     "job_id": job.job_id,
+                    "status": job.status.value,
                     "message": "; ".join(job.errors[:3]) or "Konversi gagal.",
+                    "failed_files": result.failed_files if result else len(job.input_files),
+                    "total_input_files": result.total_input_files if result else len(job.input_files),
                 },
             )
 

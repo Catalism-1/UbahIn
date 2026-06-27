@@ -81,12 +81,28 @@ class FileResult:
 class ServiceResult:
     output_paths: list[Path] = field(default_factory=list)
     file_results: list[FileResult] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     message: str = ""
+    total_input_files: int = 0
+    processed_files: int = 0
+    completed_files: int = 0
 
     @property
     def success(self) -> bool:
-        return not self.errors
+        return self.completed_files > 0 or any(file.status == "completed" for file in self.file_results)
+
+    @property
+    def successful_files(self) -> int:
+        return sum(1 for file in self.file_results if file.status == "completed")
+
+    @property
+    def failed_files(self) -> int:
+        return sum(1 for file in self.file_results if file.status == "failed")
+
+    @property
+    def skipped_files(self) -> int:
+        return sum(1 for file in self.file_results if file.status == "skipped")
 
     @property
     def output_count(self) -> int:

@@ -6,6 +6,9 @@
 
 const Ubahin = (() => {
   // ---------- state ----------
+  const startupTimestamp = new Date().toISOString();
+  const sessionId = `ui-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
   const state = {
     files: [],
     settings: {
@@ -29,7 +32,7 @@ const Ubahin = (() => {
     sidebarCollapsed: false,
     currentScreen: 'beranda',
     activeJob: null,    // { jobId, startedAt, filesTotal, pagesTotal, current: {file, page, total}, log: Map }
-    lastDone: null,     // { fileCount, totalImages, durationSec, folder }
+    lastDone: null,     // { fileCount, failedFiles, totalImages, durationSec, folder }
     histFilter: 'semua',
     appInfo: null,
     pendingConfirm: null,
@@ -39,6 +42,8 @@ const Ubahin = (() => {
     lastBridgeCall: null,
     bridgeReady: false,
     debugPanel: null,
+    startupTimestamp,
+    sessionId,
   };
 
   // ---------- DOM helpers ----------
@@ -112,6 +117,8 @@ const Ubahin = (() => {
     try {
       window.pywebview.api.log_frontend({
         timestamp: new Date().toISOString(),
+        startupTimestamp: state.startupTimestamp,
+        sessionId: state.sessionId,
         route: state.currentScreen,
         bridgeReady: state.bridgeReady,
         loading: state.globalLoading,
@@ -583,11 +590,15 @@ const Ubahin = (() => {
     const job = state.activeJob;
     if (!job) return;
     const totalOutputs = Number(payload.total_outputs ?? payload.output_count ?? 0);
+    const totalImages = Number(payload.total_images ?? 0);
     const fileCount = Number(payload.completed_files ?? job.filesTotal);
+    const failedFiles = Number(payload.failed_files ?? 0);
     const durationSec = (Date.now() - job.startedAt) / 1000;
     state.lastDone = {
       fileCount,
-      totalImages: totalOutputs || job.pagesTotal,
+      failedFiles,
+      status: payload.status || kind,
+      totalImages: totalImages || totalOutputs || job.pagesTotal,
       durationSec,
       folder: payload.output_folder || state.folder,
       warnings: payload.warnings || [],
@@ -597,17 +608,29 @@ const Ubahin = (() => {
     showScreen('pdf');
     renderDone();
     if (kind === 'completed') {
-      showToast(`Konversi selesai — ${state.lastDone.totalImages} gambar siap`, 'success');
+      if (failedFiles > 0) {
+        showToast('Beberapa file tidak dapat diproses, tetapi file lainnya berhasil diubah.', 'warning');
+      } else {
+        showToast(`Konversi selesai — ${state.lastDone.totalImages} gambar siap`, 'success');
+      }
     }
   };
 
   const renderDone = () => {
-    const d = state.lastDone || { fileCount: 0, totalImages: 0, durationSec: 0, folder: '' };
+    const d = state.lastDone || { fileCount: 0, failedFiles: 0, totalImages: 0, durationSec: 0, folder: '' };
+    const hasFailures = Number(d.failedFiles || 0) > 0;
+    $('#done-title').textContent = hasFailures ? 'Sebagian file berhasil diubah.' : 'File berhasil diubah.';
+    $('#done-sub').textContent = hasFailures
+      ? 'Beberapa file tidak dapat diproses, tetapi file lainnya berhasil diubah.'
+      : 'Hasil konversi sudah siap digunakan.';
     $('#done-files').textContent = `${d.fileCount} file`;
+    $('#done-failed').textContent = `${d.failedFiles || 0} file`;
+    $('#done-failed-row').hidden = !hasFailures;
     $('#done-images').textContent = `${d.totalImages} gambar`;
     $('#done-time').textContent = formatDuration(d.durationSec);
     $('#done-folder').textContent = d.folder || '—';
     $('#done-folder').title = d.folder || '';
+    $('#done-open-log').hidden = !hasFailures;
   };
 
   // ---------- history ----------
@@ -834,6 +857,7 @@ const Ubahin = (() => {
       const f = state.lastDone?.folder;
       if (f) bridge.call('open_output_folder', f).catch(() => {});
     });
+    $('#done-open-log').addEventListener('click', () => bridge.call('open_log_folder').catch(() => {}));
 
     $('#proc-log-toggle').addEventListener('click', () => {
       $('.proc-log').classList.toggle('collapsed');

@@ -81,7 +81,10 @@ class JobManager:
         job.status = JobStatus.VALIDATING
         validate_output_dir(job.options.output_dir)
         if job.tool_type == ToolType.PDF_TO_JPG:
-            validate_pdf_batch(job.input_files, max_files=50)
+            if not job.input_files:
+                raise AppError("Pilih minimal satu file PDF.")
+            if len(job.input_files) > 50:
+                raise AppError("Maksimal 50 file PDF dalam satu antrean.")
         elif job.tool_type == ToolType.MERGE_PDF:
             validate_pdf_batch(job.input_files, max_files=999)
         elif job.tool_type in {ToolType.SPLIT_PDF, ToolType.COMPRESS_PDF}:
@@ -188,7 +191,7 @@ class JobManager:
                 self._emit("on_job_failed", job)
             elif result.errors:
                 job.status = JobStatus.COMPLETED_WITH_WARNINGS
-                job.warnings.extend(result.errors)
+                job.warnings.extend(result.warnings or result.errors)
                 self._emit("on_job_completed", job)
             else:
                 job.status = JobStatus.COMPLETED
@@ -212,7 +215,12 @@ class JobManager:
     def _check_disk_estimate(self, job: Job) -> None:
         params = job.options.params
         if job.tool_type == ToolType.PDF_TO_JPG:
-            total_pages = sum(validate_pdf_file(path) for path in job.input_files)
+            total_pages = 0
+            for path in job.input_files:
+                try:
+                    total_pages += validate_pdf_file(path)
+                except Exception:
+                    continue
             estimate = estimated_output_bytes(total_pages, int(params.get("dpi", 200)), int(params.get("jpg_quality", 90)))
             self.resource_governor.ensure_enough_disk(job.options.output_dir, estimate)
 
@@ -328,9 +336,17 @@ class JobManager:
             if job.errors:
                 lines.append("Error:")
                 lines.extend(f"- {error}" for error in job.errors)
+            if job.warnings:
+                lines.append("Peringatan:")
+                lines.extend(f"- {warning}" for warning in job.warnings)
             if job.result and job.result.output_paths:
                 lines.append("File hasil:")
                 lines.extend(f"- {path}" for path in job.result.output_paths)
+            if job.result:
+                failed_files = [fr for fr in job.result.file_results if fr.status == "failed"]
+                if failed_files:
+                    lines.append("File gagal:")
+                    lines.extend(f"- {fr.input_path.name}: {fr.error or 'Tidak dapat diproses'}" for fr in failed_files)
             log_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         except Exception:
             self.logger.exception("Gagal menulis conversion_log.txt")

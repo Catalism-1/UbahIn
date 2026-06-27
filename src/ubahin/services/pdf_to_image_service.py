@@ -8,9 +8,9 @@ import fitz
 from PIL import Image
 
 from ubahin.core.cancellation import CancellationToken
-from ubahin.core.models import FileResult, ServiceResult
+from ubahin.core.models import AppError, FileResult, ServiceResult
 from ubahin.core.progress import ProgressInfo
-from ubahin.core.validation import validate_output_dir, validate_pdf_batch
+from ubahin.core.validation import validate_output_dir, validate_pdf_file
 from ubahin.utils import atomic_temp_path, finalize_atomic_write, remove_temp_file, sanitize_filename, unique_directory, unique_file
 
 ProgressCallback = Callable[[ProgressInfo], None]
@@ -38,13 +38,32 @@ class PdfToImageService:
         cancellation = cancellation or CancellationToken()
         options.output_dir = Path(options.output_dir).expanduser().resolve()
         validate_output_dir(options.output_dir)
-        total_pages = validate_pdf_batch(pdf_files, options.max_files)
-        completed_pages = 0
-        result = ServiceResult(message="Konversi PDF ke JPG selesai.")
+        if len(pdf_files) > options.max_files:
+            raise AppError(f"Maksimal {options.max_files} file PDF dalam satu antrean.")
 
-        for file_index, pdf_path in enumerate(pdf_files, start=1):
+        result = ServiceResult(message="Konversi PDF ke JPG selesai.", total_input_files=len(pdf_files))
+        valid_files: list[tuple[Path, int, FileResult]] = []
+        for pdf_path in pdf_files:
+            pdf_path = Path(pdf_path).expanduser().resolve()
+            input_size = pdf_path.stat().st_size if pdf_path.exists() else 0
+            file_result = FileResult(input_path=pdf_path, input_size=input_size)
+            try:
+                pages = validate_pdf_file(pdf_path)
+            except Exception as exc:
+                file_result.status = "failed"
+                file_result.error = str(exc)
+                result.file_results.append(file_result)
+                message = f"{pdf_path.name}: {exc}"
+                result.errors.append(message)
+                result.warnings.append(message)
+                continue
+            valid_files.append((pdf_path, pages, file_result))
+
+        total_pages = sum(pages for _, pages, _ in valid_files)
+        completed_pages = 0
+
+        for file_index, (pdf_path, _pages, file_result) in enumerate(valid_files, start=1):
             cancellation.raise_if_cancelled()
-            file_result = FileResult(input_path=pdf_path, input_size=pdf_path.stat().st_size)
             result.file_results.append(file_result)
             safe_stem = sanitize_filename(pdf_path.stem, "dokumen")
             try:
@@ -93,9 +112,14 @@ class PdfToImageService:
                                 )
                             )
                 file_result.output_size = sum(path.stat().st_size for path in file_result.output_paths)
+                result.completed_files += 1
             except Exception as exc:
                 file_result.status = "failed"
                 file_result.error = str(exc)
                 result.errors.append(f"{pdf_path.name}: {exc}")
+                result.warnings.append(f"{pdf_path.name}: {exc}")
                 continue
+            finally:
+                result.processed_files += 1
+        result.processed_files = len(result.file_results)
         return result

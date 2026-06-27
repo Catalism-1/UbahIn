@@ -81,7 +81,7 @@ class HistoryService:
                     job.start_time.isoformat() if job.start_time else None,
                     job.end_time.isoformat() if job.end_time else None,
                     job.duration,
-                    "; ".join(job.errors[:3]),
+                    "; ".join((job.errors or job.warnings)[:3]),
                     input_size,
                     output_size,
                 ),
