@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Ubahin",
+  "version": "0.1.1",
+  "identifier": "com.catalism.ubahin",
+  "build": {
+    "beforeDevCommand": "npm run dev:frontend",
+    "beforeBuildCommand": "npm run build:frontend",
+    "devUrl": "http://127.0.0.1:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Ubahin",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1100,
+        "minHeight": 700,
+        "resizable": true,
+        "maximizable": true,
+        "minimizable": true,
+        "closable": true,
+        "decorations": true,
+        "visible": false,
+        "center": true,
+        "focus": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "externalBin": ["binaries/ubahin-engine"],
+    "icon": [
+      "../../assets/app_icon.ico"
+    ]
+  }
+}

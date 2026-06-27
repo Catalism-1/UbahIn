@@ -1,4 +1,5 @@
 .venv/
+node_modules/
 __pycache__/
 .pytest_cache/
 .pytest_tmp/
@@ -30,3 +31,9 @@ LocalAppData/
 *.so
 *.dylib
 *.egg-info/
+desktop-tauri/dist/
+desktop-tauri/node_modules/
+engine-python/dist/
+engine-python/build/
+engine-python/*.spec
+desktop-tauri/src-tauri/binaries/*.exe
