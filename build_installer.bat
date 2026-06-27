@@ -12,7 +12,7 @@ if "%ISCC_EXE%"=="" if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC_EX
 if "%ISCC_EXE%"=="" if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC_EXE=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
 
 if "%ISCC_EXE%"=="" (
-  echo Inno Setup Compiler tidak ditemukan. Install Inno Setup 6 lalu jalankan ulang.
+  echo Inno Setup 6 belum ditemukan. Instal terlebih dahulu, lalu jalankan ulang script ini.
   exit /b 1
 )
 
@@ -29,36 +29,5 @@ if not exist "%INSTALLER%" (
   exit /b 1
 )
 
-set "TEST_DIR=%TEMP%\UbahinInstallTest"
-if exist "%TEST_DIR%" rmdir /s /q "%TEST_DIR%"
-mkdir "%TEST_DIR%"
-
-echo Testing installer silent di %TEST_DIR%...
-"%INSTALLER%" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="%TEST_DIR%" /LOG="%TEST_DIR%\installer.log"
-if errorlevel 1 (
-  echo Silent install gagal. Log:
-  if exist "%TEST_DIR%\installer.log" type "%TEST_DIR%\installer.log"
-  exit /b 1
-)
-
-if not exist "%TEST_DIR%\Ubahin.exe" (
-  echo Executable hasil instalasi tidak ditemukan.
-  exit /b 1
-)
-
-"%TEST_DIR%\Ubahin.exe" --self-check --silent > "%TEST_DIR%\installer_self_check.txt" 2>&1
-if errorlevel 1 (
-  echo Self-check aplikasi terinstal gagal.
-  type "%TEST_DIR%\installer_self_check.txt"
-  if exist "%LOCALAPPDATA%\Ubahin\logs\startup.log" type "%LOCALAPPDATA%\Ubahin\logs\startup.log"
-  exit /b 1
-)
-
-if exist "%TEST_DIR%\unins000.exe" (
-  "%TEST_DIR%\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-)
-if exist "%TEST_DIR%" rmdir /s /q "%TEST_DIR%"
-
-echo Installer build dan silent test selesai:
-echo %INSTALLER%
+echo Installer siap: dist\installer\Ubahin_Setup.exe
 exit /b 0

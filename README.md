@@ -4,6 +4,14 @@ Ubahin adalah backend converter file lokal/offline untuk Windows. Release candid
 
 Tahap ini belum memasang GUI final Claude. `Ubahin.exe` sekarang membuka UI demo sementara untuk mencoba konversi PDF ke JPG secara nyata.
 
+## Install untuk Pengguna
+
+1. Jalankan `Ubahin_Setup.exe`.
+2. Klik Install.
+3. Klik Finish.
+4. Ubahin langsung terbuka.
+5. Lain kali buka lewat shortcut Desktop atau Start Menu.
+
 ## Yang Ada Saat Ini
 
 - UI demo sementara berbasis Tkinter untuk PDF ke JPG.
