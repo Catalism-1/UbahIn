@@ -31,7 +31,7 @@ jobs:
         run: python -m maturin build --release --target x86_64-pc-windows-msvc
       - name: Install native wheel
         run: |
-          $wheel = Get-ChildItem native\ubahin_native\target\wheels\*.whl | Select-Object -First 1
+          $wheel = Get-ChildItem -Path "native\ubahin_native\target\wheels\*.whl" -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($wheel) {
             python -m pip install $wheel.FullName
           } else {
