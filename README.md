@@ -3,9 +3,10 @@
 Ubahin adalah aplikasi backend konverter file PDF ke gambar (JPG) secara offline dan aman untuk Windows. Semua proses dilakukan langsung di dalam komputer Anda tanpa perlu koneksi internet, memastikan privasi dokumen Anda terjaga.
 
 [![Latest Release](https://img.shields.io/github/v/release/Catalism-1/UbahIn?label=Release)](https://github.com/Catalism-1/UbahIn/releases/latest)
-[![Windows 10/11 x64](https://img.shields.io/badge/OS-Windows%2010%20%7C%2011%20x64-blue?logo=windows)](#)
+[![Windows 10/11 x86 & x64](https://img.shields.io/badge/OS-Windows%2010%20%7C%2011%20x86%20%26%20x64-blue?logo=windows)](#)
+[![Installer](https://img.shields.io/badge/Download-Installer-brightgreen?logo=windows)](https://github.com/Catalism-1/UbahIn/releases/latest)
 
-[**⬇️ Download untuk Windows**](https://github.com/Catalism-1/UbahIn/releases/latest)
+[**⬇️ Download Ubahin Installer (.exe)**](https://github.com/Catalism-1/UbahIn/releases/latest)
 
 ## Fitur
 
