@@ -1,4 +1,10 @@
+import { useEffect, useState } from 'react';
+import { Toast } from '../components/common/Toast';
+import { useToasts } from '../hooks/useToasts';
+import { getRecentHistory, openHistoryOutputDirectory } from '../services/history';
+import type { HistoryItem } from '../types/history';
 import type { PageId } from '../types/navigation';
+import { formatDateTime, statusMeta, toolLabel } from '../utils/historyFormat';
 import './pages.css';
 
 interface HomePageProps {
@@ -14,7 +20,7 @@ const tools: Array<{
   badge: string;
   muted?: boolean;
 }> = [
-  { id: 'pdf', title: 'PDF ke JPG', description: 'Siapkan alur konversi PDF menjadi gambar.', tint: 'var(--blue)', icon: 'PDF', badge: 'Segera disiapkan' },
+  { id: 'pdf', title: 'PDF ke JPG', description: 'Ubah setiap halaman PDF menjadi gambar JPG.', tint: 'var(--blue)', icon: 'PDF', badge: 'Siap dipakai' },
   { id: 'image', title: 'Gambar ke PDF', description: 'Gabungkan gambar menjadi dokumen PDF.', tint: 'var(--sage)', icon: 'IMG', badge: 'Segera hadir', muted: true },
   { id: 'merge-pdf', title: 'Gabungkan PDF', description: 'Satukan beberapa PDF dalam satu file.', tint: 'var(--lavender)', icon: 'PDF', badge: 'Segera hadir', muted: true },
   { id: 'compress-pdf', title: 'Kompres PDF', description: 'Kecilkan ukuran PDF untuk dibagikan.', tint: 'var(--peach)', icon: 'ZIP', badge: 'Segera hadir', muted: true },
@@ -22,13 +28,41 @@ const tools: Array<{
   { id: 'pdf-word', title: 'PDF ke Word', description: 'Ekspor konten PDF ke dokumen Word.', tint: 'var(--blue)', icon: 'DOC', badge: 'Segera hadir', muted: true },
 ];
 
-const recents = [
-  { name: 'Contoh_Laporan.pdf', meta: 'Pemeriksaan engine lokal', when: 'Tahap 2A', tint: 'var(--blue)' },
-  { name: 'Folder hasil default', meta: 'Belum dihubungkan ke settings backend', when: 'Placeholder', tint: 'var(--sage)' },
-  { name: 'Riwayat konversi', meta: 'Akan muncul setelah converter dipindahkan', when: 'Nanti', tint: 'var(--lavender)' },
-];
-
 export function HomePage({ onNavigate }: HomePageProps) {
+  const [recents, setRecents] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toasts, addToast } = useToasts();
+
+  useEffect(() => {
+    let active = true;
+    getRecentHistory(5)
+      .then((items) => {
+        if (active) setRecents(items);
+      })
+      .catch((error) => {
+        // Beranda tidak boleh crash bila engine belum siap.
+        console.error('Gagal memuat riwayat terbaru:', error);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleOpenFolder(item: HistoryItem) {
+    try {
+      await openHistoryOutputDirectory(item.id);
+    } catch (error) {
+      addToast(
+        'Tidak dapat membuka folder.',
+        'warning',
+        error instanceof Error ? error.message : 'Folder hasil tidak ditemukan.',
+      );
+    }
+  }
+
   return (
     <div className="page">
       <section className="hero-panel">
@@ -40,7 +74,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
         <div className="section-title">
           <div>
             <h3>Alat</h3>
-            <p>Fondasi app shell sudah siap, fitur converter menyusul per halaman.</p>
+            <p>Pilih alat untuk mulai mengubah file.</p>
           </div>
         </div>
         <div className="tool-grid">
@@ -63,22 +97,50 @@ export function HomePage({ onNavigate }: HomePageProps) {
         <div className="section-title">
           <div>
             <h3>Terakhir digunakan</h3>
-            <p>Data sementara sampai history backend dipasang ke React.</p>
+            <p>Aktivitas konversi terbaru kamu.</p>
           </div>
+          {recents.length > 0 ? (
+            <button type="button" className="secondary-button" onClick={() => onNavigate('history')}>
+              Lihat Semua
+            </button>
+          ) : null}
         </div>
-        <div className="recent-list">
-          {recents.map((recent) => (
-            <div key={recent.name} className="recent-item">
-              <span className="recent-mark" style={{ background: recent.tint }} />
-              <div>
-                <strong>{recent.name}</strong>
-                <span>{recent.meta}</span>
-              </div>
-              <time>{recent.when}</time>
-            </div>
-          ))}
-        </div>
+
+        {loading ? (
+          <div className="notice">Memuat aktivitas…</div>
+        ) : recents.length === 0 ? (
+          <div className="recent-empty">
+            <p>Belum ada aktivitas. Riwayat konversi akan muncul di sini setelah kamu menggunakan Ubahin.</p>
+          </div>
+        ) : (
+          <div className="recent-list">
+            {recents.map((recent) => {
+              const status = statusMeta(recent.status);
+              return (
+                <div key={recent.id} className="recent-item">
+                  <span className={`recent-mark ${status.tone}`} aria-hidden="true" />
+                  <div>
+                    <strong>{toolLabel(recent.tool_type)}</strong>
+                    <span title={recent.primary_filename}>
+                      {recent.primary_filename || 'Tanpa nama file'} · {status.label}
+                    </span>
+                  </div>
+                  <div className="recent-trailing">
+                    <time>{formatDateTime(recent.created_at)}</time>
+                    {recent.output_count > 0 ? (
+                      <button type="button" className="ghost-button" onClick={() => handleOpenFolder(recent)}>
+                        Buka
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
+
+      <Toast messages={toasts} />
     </div>
   );
 }

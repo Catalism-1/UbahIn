@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { AppShell } from './components/AppShell/AppShell';
-import { useTheme } from './hooks/useTheme';
+import { useAppSettings } from './hooks/useAppSettings';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { EngineCheckPage } from './pages/EngineCheckPage';
 import { HistoryPage } from './pages/HistoryPage';
@@ -50,7 +50,7 @@ function shellEngineStatus(status: EnginePageStatus): EngineStatus {
 }
 
 export default function App() {
-  const { preference, setPreference } = useTheme();
+  const { settings, theme, usingFallback, previewTheme, persistTheme, saveSettings } = useAppSettings();
   const [activePage, setActivePage] = useState<PageId>('home');
   const [engineStatus, setEngineStatus] = useState<EnginePageStatus>('idle');
   const [health, setHealth] = useState<EngineHealth | null>(null);
@@ -59,8 +59,6 @@ export default function App() {
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [isConversionRunning, setIsConversionRunning] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
-  const [performanceMode, setPerformanceMode] = useState('Seimbang');
-  const [openFolderAfterFinish, setOpenFolderAfterFinish] = useState(true);
   const runtimeRef = useRef<RuntimeState>({
     isEngineCheckRunning: false,
     activeJobId: null,
@@ -175,7 +173,13 @@ export default function App() {
   function renderPage() {
     if (activePage === 'home') return <HomePage onNavigate={setActivePage} />;
     if (activePage === 'pdf') {
-      return <PdfToJpgPage isEngineReady={engineStatus === 'ready'} onJobStateChange={handlePdfJobStateChange} />;
+      return (
+        <PdfToJpgPage
+          isEngineReady={engineStatus === 'ready'}
+          settings={settings}
+          onJobStateChange={handlePdfJobStateChange}
+        />
+      );
     }
     if (activePage === 'engine') {
       return (
@@ -192,12 +196,10 @@ export default function App() {
     if (activePage === 'settings') {
       return (
         <SettingsPage
-          theme={preference}
-          performanceMode={performanceMode}
-          openFolderAfterFinish={openFolderAfterFinish}
-          onThemeChange={setPreference}
-          onPerformanceModeChange={setPerformanceMode}
-          onOpenFolderAfterFinishChange={setOpenFolderAfterFinish}
+          settings={settings}
+          usingFallback={usingFallback}
+          onPreviewTheme={previewTheme}
+          onSave={saveSettings}
         />
       );
     }
@@ -211,9 +213,9 @@ export default function App() {
         title={meta.title}
         eyebrow={meta.eyebrow}
         engineStatus={statusForShell}
-        theme={preference}
+        theme={theme}
         navigationItems={navigationItems}
-        onThemeChange={setPreference}
+        onThemeChange={(next) => void persistTheme(next)}
         onNavigate={setActivePage}
       >
         {renderPage()}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ConversionProgress } from '../../components/ConversionProgress/ConversionProgress';
 import { FileQueue } from '../../components/FileQueue/FileQueue';
 import { OutputSettings } from '../../components/OutputSettings/OutputSettings';
@@ -6,15 +6,30 @@ import { ResultDialog } from '../../components/ResultDialog/ResultDialog';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { Toast } from '../../components/common/Toast';
 import { usePdfToJpgJob } from '../../hooks/usePdfToJpgJob';
+import type { AppSettings } from '../../types/settings';
+import type { PdfJobDefaults } from './types';
 import styles from './PdfToJpgPage.module.css';
 
 interface PdfToJpgPageProps {
   isEngineReady: boolean;
+  settings: AppSettings;
   onJobStateChange: (state: { activeJobId: string | null; isConversionRunning: boolean }) => void;
 }
 
-export function PdfToJpgPage({ isEngineReady, onJobStateChange }: PdfToJpgPageProps) {
-  const job = usePdfToJpgJob(isEngineReady);
+export function PdfToJpgPage({ isEngineReady, settings, onJobStateChange }: PdfToJpgPageProps) {
+  const defaults = useMemo<PdfJobDefaults>(
+    () => ({
+      outputDirectory: settings.default_output_directory,
+      preset: settings.default_pdf_preset,
+      dpi: settings.default_dpi,
+      jpegQuality: settings.default_jpeg_quality,
+      createZip: settings.create_zip_after_conversion,
+      openOutputAfterFinish: settings.open_output_after_finish,
+      performanceMode: settings.performance_mode,
+    }),
+    [settings],
+  );
+  const job = usePdfToJpgJob(isEngineReady, defaults);
   const isConversionRunning = job.status === 'starting' || job.status === 'processing' || job.status === 'cancelling';
 
   useEffect(() => {

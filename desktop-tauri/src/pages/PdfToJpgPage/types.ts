@@ -26,13 +26,24 @@ export interface PdfQueueItem {
 }
 
 export type PdfPreset = 'standard' | 'high' | 'ultra';
-export type PerformanceMode = 'memory_saver' | 'balanced' | 'fast';
+export type PerformanceMode = 'ram_saver' | 'balanced' | 'fast';
 
 export interface PdfPresetConfig {
   id: PdfPreset;
   label: string;
   dpi: number;
   jpegQuality: number;
+}
+
+/** Nilai default global (dari Pengaturan) yang dipakai saat alat dibuka. */
+export interface PdfJobDefaults {
+  outputDirectory: string;
+  preset: PdfPreset;
+  dpi: number;
+  jpegQuality: number;
+  createZip: boolean;
+  openOutputAfterFinish: boolean;
+  performanceMode: PerformanceMode;
 }
 
 export interface PdfToJpgOptions {

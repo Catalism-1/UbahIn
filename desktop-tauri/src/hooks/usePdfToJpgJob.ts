@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { openLogFolder } from '../services/engine';
 import {
   cancelPdfToJpgJob,
@@ -17,6 +17,7 @@ import type {
   JobResult,
   JobStatus,
   PdfInspectionResult,
+  PdfJobDefaults,
   PdfPreset,
   PdfPresetConfig,
   PdfQueueItem,
@@ -31,6 +32,29 @@ export const pdfPresets: PdfPresetConfig[] = [
   { id: 'high', label: 'Tinggi', dpi: 200, jpegQuality: 90 },
   { id: 'ultra', label: 'Sangat Tinggi', dpi: 300, jpegQuality: 95 },
 ];
+
+export const DEFAULT_PDF_JOB_DEFAULTS: PdfJobDefaults = {
+  outputDirectory: '',
+  preset: 'standard',
+  dpi: 150,
+  jpegQuality: 80,
+  createZip: false,
+  openOutputAfterFinish: true,
+  performanceMode: 'balanced',
+};
+
+function optionsFromDefaults(defaults: PdfJobDefaults): PdfToJpgOptions {
+  return {
+    outputDirectory: defaults.outputDirectory,
+    preset: defaults.preset,
+    dpi: defaults.dpi,
+    jpegQuality: defaults.jpegQuality,
+    optimizeFileSize: true,
+    createZip: defaults.createZip,
+    openOutputAfterFinish: defaults.openOutputAfterFinish,
+    performanceMode: defaults.performanceMode,
+  };
+}
 
 function inspectionToQueueItem(file: PdfInspectionResult): PdfQueueItem {
   const failed = file.status === 'failed' || Boolean(file.error);
@@ -68,18 +92,9 @@ function updateFileFromEvent(files: PdfQueueItem[], event: FileCompletedEvent, s
   });
 }
 
-export function usePdfToJpgJob(isEngineReady: boolean) {
+export function usePdfToJpgJob(isEngineReady: boolean, defaults: PdfJobDefaults = DEFAULT_PDF_JOB_DEFAULTS) {
   const [files, setFiles] = useState<PdfQueueItem[]>([]);
-  const [options, setOptions] = useState<PdfToJpgOptions>({
-    outputDirectory: '',
-    preset: 'standard',
-    dpi: 150,
-    jpegQuality: 80,
-    optimizeFileSize: true,
-    createZip: false,
-    openOutputAfterFinish: false,
-    performanceMode: 'balanced',
-  });
+  const [options, setOptions] = useState<PdfToJpgOptions>(() => optionsFromDefaults(defaults));
   const [status, setStatus] = useState<JobStatus>('idle');
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
@@ -102,6 +117,19 @@ export function usePdfToJpgJob(isEngineReady: boolean) {
       setToasts((current) => current.filter((toast) => toast.id !== id));
     }, 4200);
   }, []);
+
+  // Terapkan default global (Pengaturan) saat alat dibuka / settings dimuat,
+  // tanpa menimpa opsi khusus job yang sedang/akan diproses pengguna.
+  const freshnessRef = useRef({ status, fileCount: files.length });
+  freshnessRef.current = { status, fileCount: files.length };
+  const defaultsKey = JSON.stringify(defaults);
+  useEffect(() => {
+    if (freshnessRef.current.status === 'idle' && freshnessRef.current.fileCount === 0) {
+      setOptions(optionsFromDefaults(defaults));
+    }
+    // Hanya bereaksi terhadap perubahan default global, bukan setiap render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultsKey]);
 
   const handlePickFiles = useCallback(async () => {
     if (isBusy) return;

@@ -427,6 +427,201 @@
   transform: translateX(18px);
 }
 
+.folder-field {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.folder-field .field-placeholder {
+  flex: 1 1 auto;
+}
+
+.folder-field .secondary-button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.ghost-button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 800;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.ghost-button:hover {
+  background: var(--surface-2);
+  color: var(--error);
+}
+
+.history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.filter-chip {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 0 14px;
+}
+
+.filter-chip.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.history-item {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: 16px 18px;
+}
+
+.history-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.history-heading {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.history-heading strong {
+  color: var(--text);
+  font-size: 14.5px;
+}
+
+.history-file {
+  color: var(--text-2);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-meta {
+  align-items: center;
+  color: var(--text-3);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 8px;
+}
+
+.history-badge {
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.history-badge.success {
+  background: rgba(120, 168, 138, 0.16);
+  color: var(--success);
+}
+
+.history-badge.warning {
+  background: rgba(215, 168, 89, 0.18);
+  color: var(--warning);
+}
+
+.history-badge.error {
+  background: rgba(212, 123, 123, 0.16);
+  color: var(--error);
+}
+
+.history-badge.muted {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.history-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.history-actions .secondary-button {
+  min-height: 38px;
+}
+
+.history-footer {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.history-count {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.recent-empty {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 22px;
+  text-align: center;
+}
+
+.recent-mark.success {
+  background: var(--sage);
+}
+
+.recent-mark.warning {
+  background: var(--peach);
+}
+
+.recent-mark.error {
+  background: var(--pink);
+}
+
+.recent-mark.muted {
+  background: var(--surface-2);
+}
+
+.recent-trailing {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
 @media (max-width: 1180px) {
   .tool-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

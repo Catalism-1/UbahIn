@@ -212,9 +212,12 @@ Sudah dibuat:
 Belum dikerjakan:
 
 - Memindahkan desain/fungsi final untuk tool selain PDF ke JPG.
+- Optimasi ukuran sidecar PyInstaller.
+
+Selesai di Tahap 2D (lihat bagian "Tahap 2D" di bawah):
+
 - Riwayat React penuh dari SQLite.
 - Settings backend penuh untuk semua opsi.
-- Optimasi ukuran sidecar PyInstaller.
 
 ## Tahap 2C: Stabilisasi, Diagnostik, dan Packaging Windows
 
@@ -257,3 +260,91 @@ Keterbatasan tahap 2B & 2C:
 - Riwayat halaman React masih placeholder.
 - Pengaturan global masih belum disimpan ke backend.
 - Build sidecar onefile masih besar karena PyInstaller menarik dependency dari environment; ini target optimasi tahap berikutnya.
+
+## Tahap 2D: Pengaturan & Riwayat Lokal Nyata
+
+Tahap ini membuat halaman **Pengaturan** dan **Riwayat** menjadi fitur nyata yang tersimpan
+secara lokal dan dapat dipakai ulang oleh semua converter berikutnya. Tidak ada perubahan pada
+alur PDF ke JPG yang sudah stabil selain pembacaan default dari Pengaturan.
+
+### Arsitektur persistence
+
+```text
+React UI
+  → Tauri/Rust command (perantara aman, berbatas waktu)
+  → Python sidecar (JSON Lines)
+  → SQLite history + settings.json (di app data Ubahin)
+```
+
+Engine Python adalah **satu-satunya pemilik** database riwayat dan file pengaturan. React tidak
+pernah menyentuh SQLite atau filesystem secara langsung; Rust hanya meneruskan request dan
+membuka folder hasil bila diminta. Semua data tersimpan **lokal** — tidak ada cloud, API online,
+atau sinkronisasi internet.
+
+### Lokasi database dan settings
+
+| Data | Lokasi |
+| --- | --- |
+| Pengaturan | `%LOCALAPPDATA%\Ubahin\settings\settings.json` |
+| Riwayat (SQLite) | `%LOCALAPPDATA%\Ubahin\history\history.sqlite3` |
+| Backup migrasi DB | `%LOCALAPPDATA%\Ubahin\history\history.sqlite3.v<versi>.bak` |
+
+Tidak ada data yang disimpan di folder instalasi. Tidak ada data sensitif yang disimpan.
+
+### Alur Pengaturan (settings flow)
+
+- Action engine: `get_settings`, `save_settings`. Command Rust: `get_settings`, `save_settings`,
+  `select_default_output_directory`.
+- File disimpan dengan **schema + versi** dan ditulis **atomic** (tulis ke file sementara lalu
+  `rename`) sehingga tidak pernah setengah tertulis.
+- Seluruh enum dan angka **divalidasi**; nilai rusak atau hilang otomatis memakai default aman.
+- Saat aplikasi dibuka React memuat settings dari engine. Tema langsung diterapkan saat diubah.
+  `localStorage` hanya dipakai sebagai cache tema untuk paint awal / fallback bila engine belum
+  tersedia — bukan sumber kebenaran.
+- Field pengaturan: `theme`, `default_output_directory`, `performance_mode`, `default_pdf_preset`,
+  `default_dpi`, `default_jpeg_quality`, `create_zip_after_conversion`, `open_output_after_finish`,
+  `notifications_enabled`.
+
+### Alur Riwayat (history flow)
+
+- Action engine: `list_history`, `get_recent_history`, `delete_history_item`, `clear_history`,
+  `open_history_output_directory`. Command Rust dengan nama sama (membuka folder lewat Rust).
+- Setiap job menghasilkan **tepat satu** record. Job berstatus `completed`,
+  `completed_with_warnings`, `failed`, atau `cancelled` semuanya tercatat dengan status yang tepat
+  (penyimpanan dilakukan di blok `finally` `JobManager._run_job`).
+- Beranda "Terakhir digunakan" memakai `get_recent_history(limit=5)`; halaman Riwayat memakai
+  `list_history` dengan paginasi dan filter (Semua / Berhasil / Gagal / Dibatalkan). Filter
+  "Berhasil" mencakup juga `completed_with_warnings`.
+
+### Batas maksimal 500 record
+
+Database menyimpan maksimal **500 record terbaru**. Saat melewati batas, hanya record **tertua**
+yang dihapus (retention berjalan setiap kali record baru disimpan). Record lama pengguna tidak
+pernah dihapus selama masih di dalam 500 terbaru.
+
+### Privasi & keamanan data
+
+- Semua riwayat dan pengaturan tersimpan **lokal** di `%LOCALAPPDATA%\Ubahin`.
+- **Menghapus record riwayat tidak menghapus file hasil pengguna.** Hanya catatan di database yang
+  dihapus; file JPG/ZIP tetap berada di foldernya.
+- Bila folder hasil sudah tidak ada saat membuka dari Riwayat, aplikasi tidak crash dan menampilkan
+  pesan `Folder hasil tidak ditemukan.`
+
+### Migrasi schema SQLite
+
+- Migrasi dilakukan **berurutan dan transaksional**. Database lama dibackup (`*.v<versi>.bak`)
+  sebelum migrasi besar sehingga selalu dapat dipulihkan bila terjadi kegagalan.
+- Migrasi v1 → v2 menambahkan kolom `created_at` dan `warning_count` tanpa merusak record lama;
+  `created_at` diisi mundur dari `started_at`/`finished_at` untuk record yang sudah ada.
+
+### Cara reset settings tanpa menghapus history
+
+Hapus file `%LOCALAPPDATA%\Ubahin\settings\settings.json`. Saat aplikasi dibuka kembali, engine
+mengembalikan default aman dan membuat ulang file tersebut. Database riwayat di folder `history`
+tidak tersentuh.
+
+### Cara clear history tanpa menghapus file hasil
+
+Gunakan tombol **Hapus Riwayat** di halaman Riwayat (atau hapus file
+`%LOCALAPPDATA%\Ubahin\history\history.sqlite3`). Tindakan ini hanya membersihkan catatan; semua
+file hasil konversi di folder output pengguna tetap utuh.
