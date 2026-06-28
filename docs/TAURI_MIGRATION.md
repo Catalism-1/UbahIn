@@ -394,7 +394,19 @@ React UI (ImageToPdfPage)
 - **`page_size`**: `original` (dimensi asli gambar + margin), `a4`, `letter`.
 - **`orientation`**: `auto` (menyesuaikan orientasi per gambar), `portrait`, `landscape`.
 - **`margin`**: `none` (0 pt), `small` (18 pt), `normal` (36 pt).
-- **`fit_mode`**: `contain` (gambar pas di dalam halaman), `fill` (gambar memenuhi halaman secara penuh dan dipotong sisanya secara presisi).
+- **`fit_mode`**: `contain` (gambar pas di dalam halaman), `fill` (gambar memenuhi halaman secara penuh secara presisi).
+- **`image_quality_preset`**: `high` (kualitas 95, tanpa optimasi ukuran), `balanced` (kualitas 85, optimasi ukuran), `compact` (kualitas 70, optimasi ukuran), `custom` (slider kustom).
+- **`jpeg_quality`**: Nilai numerik 50 s.d. 95 untuk kompresi encoding halaman PDF.
+- **`optimize_pdf_size`**: Mengurangi overhead PDF dan mengoptimalkan kompresi Huffman table.
+
+### Aturan Keberhasilan & Validasi File PDF
+
+Untuk menjamin keandalan hasil konversi, status `job_completed` dari engine dan status sukses di UI **hanya** dikirim jika seluruh kriteria validasi ini terpenuhi secara penuh:
+1. File output final berhasil terbentuk di direktori tujuan.
+2. File output bukan 0 byte (`stat.st_size > 0`).
+3. File output memiliki ekstensi `.pdf`.
+4. File PDF berhasil divalidasi dengan dibaca ulang oleh library `pypdf.PdfReader`, dan jumlah halaman di dalamnya sesuai dengan jumlah gambar valid yang dimasukkan.
+5. Jika salah satu kondisi gagal, engine akan melempar event `job_failed` dan membersihkan seluruh file temporary, sehingga mencegah klaim sukses palsu di UI.
 
 ### Optimasi Memori & Kualitas
 
@@ -402,3 +414,8 @@ React UI (ImageToPdfPage)
 - **Transparency Blending**: Gambar PNG/WEBP transparan dipadukan secara otomatis di atas warna latar belakang putih polos agar file PDF tidak rusak.
 - **EXIF Auto-Rotation**: Data orientasi EXIF kamera dikoreksi secara otomatis (`ImageOps.exif_transpose`) sebelum gambar dimasukkan ke PDF.
 - **Atomic File Writing**: File ditulis ke file sementara (`.tmp`) lebih dulu, lalu di-rename setelah sukses. File sementara langsung dihapus jika proses gagal atau dibatalkan.
+
+### Troubleshooting Gambar tidak Muncul
+1. **Periksa Izin Akses Folder:** Pastikan folder hasil yang dipilih memiliki izin tulis (*write permission*). Jika folder dilindungi Windows (misal direktori root `C:\`), jalankan aplikasi sebagai Administrator atau ubah folder ke `Unduhan`/`Dokumen`.
+2. **Periksa Format Gambar:** Pastikan file gambar tidak rusak. Coba buka gambar terlebih dahulu dengan aplikasi Windows default. Gambar yang korup otomatis dilewati dengan memunculkan *Warning*, tetapi jika seluruh gambar korup, job akan digagalkan dengan status `job_failed`.
+3. **Periksa Log File:** Buka berkas log melalui tombol **Buka Log** di dialog error atau masuk ke `%LOCALAPPDATA%\Ubahin\logs\engine.stderr.log` untuk melihat detail pengecualian (*exception*) dari pustaka PIL.
