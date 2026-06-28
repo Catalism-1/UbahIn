@@ -94,7 +94,9 @@ def _app_info() -> dict[str, Any]:
             "app_info",
             "self_check",
             "inspect_pdf_files",
+            "inspect_image_files",
             "start_pdf_to_jpg",
+            "start_image_to_pdf",
             "cancel_job",
             "get_job_status",
             "get_settings",
@@ -185,6 +187,76 @@ def _inspect_pdf(path: Path) -> dict[str, Any]:
     return base
 
 
+def _inspect_image(path: Path) -> dict[str, Any]:
+    import base64
+    from io import BytesIO
+    resolved = path.expanduser().resolve()
+    file_id = str(uuid.uuid4())
+    filename = resolved.name
+    size_bytes = resolved.stat().st_size if resolved.exists() else 0
+    base: dict[str, Any] = {
+        "path": str(resolved),
+        "file_id": file_id,
+        "filename": filename,
+        "size_bytes": size_bytes,
+        "format": None,
+        "width": 0,
+        "height": 0,
+        "status": "ready",
+        "warning": None,
+        "error": None,
+        "thumbnail_data_uri": None,
+    }
+    try:
+        if not resolved.exists():
+            raise AppError("File tidak ditemukan.")
+        if resolved.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
+            raise AppError("Format gambar tidak didukung.")
+        
+        from PIL import Image
+        with Image.open(resolved) as img:
+            base["format"] = img.format
+            base["width"] = img.width
+            base["height"] = img.height
+            
+            # Generate thumbnail: max 160px on longest side
+            thumb_w = img.width
+            thumb_h = img.height
+            if thumb_w > 160 or thumb_h > 160:
+                if thumb_w > thumb_h:
+                    thumb_h = int(round(160 * (thumb_h / thumb_w)))
+                    thumb_w = 160
+                else:
+                    thumb_w = int(round(160 * (thumb_w / thumb_h)))
+                    thumb_h = 160
+                    
+            thumb_w = max(thumb_w, 1)
+            thumb_h = max(thumb_h, 1)
+            
+            thumb = img.copy()
+            thumb.thumbnail((thumb_w, thumb_h), Image.Resampling.LANCZOS)
+            
+            thumb_rgb = thumb
+            if thumb.mode in ("RGBA", "LA") or (thumb.mode == "P" and "transparency" in thumb.info):
+                thumb_rgb = Image.new("RGB", thumb.size, "white")
+                thumb_rgb.paste(thumb, mask=thumb.convert("RGBA").split()[3])
+            elif thumb.mode != "RGB":
+                thumb_rgb = thumb.convert("RGB")
+                
+            buffered = BytesIO()
+            thumb_rgb.save(buffered, format="JPEG", quality=75)
+            img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            base["thumbnail_data_uri"] = f"data:image/jpeg;base64,{img_str}"
+            
+            if thumb_rgb is not thumb:
+                thumb_rgb.close()
+            thumb.close()
+    except Exception as exc:
+        base["status"] = "failed"
+        base["error"] = str(exc)
+    return base
+
+
 class EngineRuntime:
     def __init__(self) -> None:
         self._write_lock = threading.RLock()
@@ -214,8 +286,12 @@ class EngineRuntime:
             return _error(request_id, "Komponen engine belum lengkap.")
         if action == "inspect_pdf_files":
             return self._inspect_pdf_files(request_id, body)
+        if action == "inspect_image_files":
+            return self._inspect_image_files(request_id, body)
         if action == "start_pdf_to_jpg":
             return self._start_pdf_to_jpg(request_id, body)
+        if action == "start_image_to_pdf":
+            return self._start_image_to_pdf(request_id, body)
         if action == "cancel_job":
             return self._cancel_job(request_id, body)
         if action == "get_job_status":
@@ -244,6 +320,68 @@ class EngineRuntime:
             return _error(request_id, "Payload paths harus berupa daftar file.", "INVALID_PAYLOAD")
         results = [_inspect_pdf(Path(str(path))) for path in paths[:50]]
         return _ok(request_id, {"files": results})
+
+    def _inspect_image_files(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+        paths = payload.get("paths")
+        if not isinstance(paths, list):
+            return _error(request_id, "Payload paths harus berupa daftar file.", "INVALID_PAYLOAD")
+        results = [_inspect_image(Path(str(path))) for path in paths[:50]]
+        return _ok(request_id, {"files": results})
+
+    def _start_image_to_pdf(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+        job_id = str(payload.get("job_id") or uuid.uuid4())
+        raw_files = payload.get("files")
+        if not isinstance(raw_files, list) or not raw_files:
+            return _error(request_id, "Pilih minimal satu file gambar.", "INVALID_PAYLOAD")
+        if len(raw_files) > 50:
+            return _error(request_id, "Maksimal 50 gambar dalam satu antrean.", "TOO_MANY_FILES")
+
+        output_directory = str(payload.get("output_directory") or "").strip()
+        if not output_directory:
+            return _error(request_id, "Pilih folder hasil terlebih dahulu.", "MISSING_OUTPUT_DIRECTORY")
+
+        paths: list[Path] = []
+        file_ids: dict[str, str] = {}
+        for item in raw_files:
+            if not isinstance(item, dict):
+                continue
+            path = Path(str(item.get("path") or ""))
+            if not str(path):
+                continue
+            paths.append(path)
+            file_ids[path.expanduser().resolve().name] = str(item.get("file_id") or "")
+
+        if not paths:
+            return _error(request_id, "Tidak ada file gambar valid untuk diproses.", "NO_INPUT_FILES")
+
+        open_after_finish = bool(payload.get("open_output_after_finish", False))
+
+        try:
+            job = self._manager.create_job(
+                ToolType.IMAGE_TO_PDF,
+                paths,
+                output_directory,
+                job_id=job_id,
+                output_name=str(payload.get("output_filename") or "hasil_gambar.pdf"),
+                page_size=str(payload.get("page_size") or "original"),
+                orientation=str(payload.get("orientation") or "auto"),
+                margin=str(payload.get("margin") or "normal"),
+                fit_mode=str(payload.get("fit_mode") or "contain"),
+                performance_mode=_performance_mode(payload.get("performance_mode")),
+            )
+            self._job_meta[job.job_id] = {
+                "total_pages": len(paths),
+                "open_after_finish": open_after_finish,
+                "file_ids": file_ids,
+            }
+            self._manager.start_job(job.job_id)
+        except AppError as exc:
+            return _error(request_id, str(exc), "JOB_START_FAILED")
+        except Exception as exc:
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
+            return _error(request_id, f"Tidak dapat memulai konversi: {exc}", "JOB_START_FAILED")
+
+        return _ok(request_id, {"job_id": job.job_id, "status": job.status.value})
 
     def _start_pdf_to_jpg(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
         job_id = str(payload.get("job_id") or uuid.uuid4())
@@ -521,6 +659,7 @@ class EngineRuntime:
                 "processed_files": result.processed_files if result else 0,
                 "total_outputs": len(output_paths),
                 "total_jpg": len(jpg_outputs),
+                "output_size_bytes": result.output_size if result else 0,
                 "output_directory": str(job.options.output_dir),
                 "output_paths": [_json_safe_path(path) for path in output_paths],
                 "duration_seconds": job.duration,
