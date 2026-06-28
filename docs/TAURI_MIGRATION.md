@@ -348,3 +348,57 @@ tidak tersentuh.
 Gunakan tombol **Hapus Riwayat** di halaman Riwayat (atau hapus file
 `%LOCALAPPDATA%\Ubahin\history\history.sqlite3`). Tindakan ini hanya membersihkan catatan; semua
 file hasil konversi di folder output pengguna tetap utuh.
+
+## Tahap 3A: Gambar ke PDF (Image to PDF)
+
+Tahap ini menambahkan converter kedua, yaitu **Gambar ke PDF**, yang menggabungkan banyak gambar (JPG, JPEG, PNG, WEBP) menjadi satu file PDF secara lokal, aman, dan responsif.
+
+### Arsitektur Gambar ke PDF
+
+```text
+React UI (ImageToPdfPage)
+  → pickImageFiles (Tauri command / rfd native picker)
+  → inspectImageFiles (Tauri command → Python sidecar)
+  → startImageToPdf (Tauri command → Python sidecar)
+  → Python ImageToPdfService (PIL processing)
+  → Event progress & completion disalurkan ke React
+```
+
+### Action JSON Lines Baru
+
+1. **`inspect_image_files`**
+   - Menganalisis metadata gambar (format, dimensi px, ukuran bytes) dan menghasilkan thumbnail base64 (sisi terpanjang maks 160px, transparansi disatukan dengan background putih untuk preview).
+   - Payload: `{"paths": ["C:\\path\\foto.png"]}`
+   - Response minimal: `{"file_id": "uuid", "path": "...", "filename": "...", "size_bytes": 123, "format": "PNG", "width": 800, "height": 600, "status": "ready", "thumbnail_data_uri": "data:image/jpeg;base64,..."}`
+
+2. **`start_image_to_pdf`**
+   - Menjalankan job penggabungan gambar menjadi PDF.
+   - Payload:
+     ```json
+     {
+       "job_id": "uuid",
+       "files": [{"file_id": "uuid", "path": "C:\\path\\foto.png"}],
+       "output_directory": "C:\\Hasil",
+       "output_filename": "Dokumen.pdf",
+       "page_size": "original",
+       "orientation": "auto",
+       "margin": "normal",
+       "fit_mode": "contain",
+       "open_output_after_finish": true,
+       "performance_mode": "balanced"
+     }
+     ```
+
+### Pengaturan & Opsi Gambar ke PDF
+
+- **`page_size`**: `original` (dimensi asli gambar + margin), `a4`, `letter`.
+- **`orientation`**: `auto` (menyesuaikan orientasi per gambar), `portrait`, `landscape`.
+- **`margin`**: `none` (0 pt), `small` (18 pt), `normal` (36 pt).
+- **`fit_mode`**: `contain` (gambar pas di dalam halaman), `fill` (gambar memenuhi halaman secara penuh dan dipotong sisanya secara presisi).
+
+### Optimasi Memori & Kualitas
+
+- **Sequential Processing**: Gambar masukan dibuka dan dibebaskan dari memori RAM satu per satu. Hanya objek *canvas* hasil render dengan dimensi cetak (seperti A4) yang dipertahankan dalam list memori untuk fungsi penulisan akhir `save(..., save_all=True)`. Hal ini mencegah pembengkakan memori akibat gambar resolusi tinggi (misal kamera 12MP+).
+- **Transparency Blending**: Gambar PNG/WEBP transparan dipadukan secara otomatis di atas warna latar belakang putih polos agar file PDF tidak rusak.
+- **EXIF Auto-Rotation**: Data orientasi EXIF kamera dikoreksi secara otomatis (`ImageOps.exif_transpose`) sebelum gambar dimasukkan ke PDF.
+- **Atomic File Writing**: File ditulis ke file sementara (`.tmp`) lebih dulu, lalu di-rename setelah sukses. File sementara langsung dihapus jika proses gagal atau dibatalkan.
