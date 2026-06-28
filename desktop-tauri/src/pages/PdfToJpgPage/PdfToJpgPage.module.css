@@ -1,8 +1,10 @@
 .page {
   display: grid;
   gap: 20px;
-  max-width: 1240px;
+  max-width: 1680px;
   min-width: 0;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .hero {
@@ -34,8 +36,8 @@
 .layout {
   align-items: start;
   display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(0, 1fr) clamp(300px, 26vw, 370px);
+  gap: clamp(16px, 1.5vw, 24px);
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 24vw, 390px);
   min-width: 0;
 }
 

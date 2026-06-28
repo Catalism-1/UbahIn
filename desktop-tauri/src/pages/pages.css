@@ -1,8 +1,10 @@
 .page {
   display: grid;
   gap: var(--app-page-gap, 22px);
-  max-width: 1120px;
+  max-width: 1680px;
   min-width: 0;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .hero-panel {
@@ -622,7 +624,7 @@
   gap: 8px;
 }
 
-@media (max-width: 1279px) {
+@media (max-width: 1199px) {
   .tool-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
