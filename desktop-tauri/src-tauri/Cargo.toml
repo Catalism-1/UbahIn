@@ -1,6 +1,6 @@
 [package]
 name = "ubahin_desktop"
-version = "0.1.1"
+version = "0.1.2"
 description = "Ubahin desktop shell"
 authors = ["Catalism-1"]
 edition = "2021"

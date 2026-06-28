@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 
-ENGINE_VERSION = "0.1.1"
+ENGINE_VERSION = "0.1.2"
 
 
 def _add_legacy_src_to_path() -> None:

@@ -102,7 +102,7 @@ export function Sidebar({
           <strong>{engineLabel(engineStatus)}</strong>
           <span>Status engine lokal</span>
         </div>
-        <span className={styles.version}>Ubahin 0.1.1</span>
+        <span className={styles.version}>Ubahin 0.1.2</span>
       </div>
     </aside>
   );

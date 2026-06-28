@@ -1,5 +1,5 @@
 #define MyAppName "Ubahin"
-#define MyAppVersion "0.1.1"
+#define MyAppVersion "0.1.2"
 #define MyAppPublisher "Catalism-1"
 #define MyAppExeName "Ubahin.exe"
 
