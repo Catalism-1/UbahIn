@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import { AppShell } from './components/AppShell/AppShell';
 import { useAppSettings } from './hooks/useAppSettings';
 import { ComingSoonPage } from './pages/ComingSoonPage';
@@ -8,7 +7,8 @@ import { HistoryPage } from './pages/HistoryPage';
 import { PdfToJpgPage } from './pages/PdfToJpgPage/PdfToJpgPage';
 import { HomePage } from './pages/HomePage';
 import { SettingsPage } from './pages/SettingsPage';
-import { cancelEngineJob, checkEngine, logWindowEvent, openLogFolder } from './services/engine';
+import { useTauriEvent } from './hooks/useTauriEvent';
+import { cancelActiveJobAndClose, checkEngine, logWindowEvent, openLogFolder } from './services/engine';
 import type { EngineHealth } from './types/engine';
 import type { EngineStatus, NavigationItem, PageId } from './types/navigation';
 
@@ -19,6 +19,10 @@ interface RuntimeState {
   activeJobId: string | null;
   isConversionRunning: boolean;
 }
+
+type CloseActiveJobPayload = {
+  active_job_id?: string | null;
+};
 
 const navigationItems: NavigationItem[] = [
   { id: 'home', label: 'Beranda', icon: 'home' },
@@ -64,7 +68,6 @@ export default function App() {
     activeJobId: null,
     isConversionRunning: false,
   });
-  const forceClosingRef = useRef(false);
 
   useEffect(() => {
     runtimeRef.current = {
@@ -74,46 +77,12 @@ export default function App() {
     };
   }, [activeJobId, isConversionRunning, isEngineCheckRunning]);
 
-  useEffect(() => {
-    let disposed = false;
-    let unlisten: (() => void) | undefined;
-
-    getCurrentWindow()
-      .onCloseRequested(async (event) => {
-        const runtime = runtimeRef.current;
-        void logWindowEvent(
-          `close_requested engineCheck=${runtime.isEngineCheckRunning} conversion=${runtime.isConversionRunning} job=${runtime.activeJobId ?? 'none'}`,
-        );
-
-        if (forceClosingRef.current) return;
-
-        if (runtime.isConversionRunning) {
-          event.preventDefault();
-          setShowCloseDialog(true);
-          return;
-        }
-
-        if (runtime.isEngineCheckRunning) {
-          void cancelEngineJob(runtime.activeJobId);
-        }
-      })
-      .then((handler) => {
-        if (disposed) {
-          handler();
-          return;
-        }
-        unlisten = handler;
-      })
-      .catch((error) => {
-        console.error('Gagal memasang listener close request:', error);
-        void logWindowEvent(`close_listener_error ${String(error)}`);
-      });
-
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
+  const handleNativeCloseActiveJob = useCallback((payload: CloseActiveJobPayload) => {
+    void logWindowEvent(`close_blocked_active_job job=${payload.active_job_id ?? runtimeRef.current.activeJobId ?? 'none'}`);
+    setShowCloseDialog(true);
   }, []);
+
+  useTauriEvent<CloseActiveJobPayload>('app://close-active-job', handleNativeCloseActiveJob, true);
 
   const meta = pageMeta[activePage];
   const statusForShell = useMemo(() => shellEngineStatus(engineStatus), [engineStatus]);
@@ -153,15 +122,11 @@ export default function App() {
   async function handleCancelAndClose() {
     setShowCloseDialog(false);
     try {
-      await Promise.race([
-        cancelEngineJob(activeJobId),
-        new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 5000);
-        }),
-      ]);
-    } finally {
-      forceClosingRef.current = true;
-      await getCurrentWindow().close();
+      await cancelActiveJobAndClose(activeJobId);
+    } catch (error) {
+      console.error('Gagal membatalkan dan menutup aplikasi:', error);
+      void logWindowEvent(`cancel_and_close_error ${String(error)}`);
+      setShowCloseDialog(true);
     }
   }
 

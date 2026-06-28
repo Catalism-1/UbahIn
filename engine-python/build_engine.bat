@@ -16,6 +16,8 @@ if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 if exist "%ENGINE_NAME%.spec" del /q "%ENGINE_NAME%.spec"
 
+rem Pakai --console agar stdin/stdout JSON Lines tetap aktif.
+rem Tauri shell spawn menyembunyikan console Windows dengan CREATE_NO_WINDOW.
 "%PYTHON_EXE%" -m PyInstaller ^
   --noconfirm ^
   --clean ^

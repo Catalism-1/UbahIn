@@ -25,7 +25,10 @@ pub fn open_logs() -> Result<(), String> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        Err(format!("Membuka folder log belum didukung di platform ini: {}", dir.display()))
+        Err(format!(
+            "Membuka folder log belum didukung di platform ini: {}",
+            dir.display()
+        ))
     }
 }
 

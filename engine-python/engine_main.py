@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import platform
 import sys
 import threading
@@ -234,7 +235,7 @@ class EngineRuntime:
         if action == "open_history_output_directory":
             return self._open_history_output_directory(request_id, body)
         if action == "shutdown":
-            return _ok(request_id, {"message": "Engine ditutup dengan aman"})
+            return self._shutdown(request_id, body)
         return _error(request_id, "Aksi engine tidak dikenal.", "UNKNOWN_ACTION")
 
     def _inspect_pdf_files(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
@@ -401,6 +402,32 @@ class EngineRuntime:
             return _error(request_id, "Folder hasil tidak ditemukan.", "OUTPUT_DIR_MISSING")
         return _ok(request_id, {"path": str(path), "exists": True})
 
+    def _shutdown(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+        cancel_active = bool(payload.get("cancel_active", True))
+        try:
+            timeout_seconds = float(payload.get("timeout_seconds") or 2.0)
+        except (TypeError, ValueError):
+            timeout_seconds = 2.0
+        timeout_seconds = max(0.0, min(timeout_seconds, 10.0))
+
+        active_before = [job.job_id for job in self._manager.get_active_jobs()]
+        cleanup_completed = True
+        if cancel_active:
+            cleanup_completed = self._manager.shutdown_gracefully(timeout=timeout_seconds)
+        active_remaining = [job.job_id for job in self._manager.get_active_jobs()]
+
+        return _ok(
+            request_id,
+            {
+                "message": "Engine ditutup dengan aman",
+                "cancel_active": cancel_active,
+                "cleanup_completed": cleanup_completed,
+                "active_jobs_before": active_before,
+                "active_jobs_remaining": active_remaining,
+                "sqlite_connections": "closed_per_operation",
+            },
+        )
+
     def _wire_events(self) -> None:
         def on_started(job: Job) -> None:
             self.write_message(
@@ -541,6 +568,7 @@ def run_stdio() -> int:
         line = raw_line.strip()
         if not line:
             continue
+        payload: object | None = None
         try:
             payload = json.loads(line)
             if not isinstance(payload, dict):
@@ -550,9 +578,15 @@ def run_stdio() -> int:
             print(traceback.format_exc(), file=sys.stderr, flush=True)
             response = _error(None, "Engine tidak dapat memproses request.")
         runtime.write_message(response)
-        
+
         # Jika menerima instruksi shutdown, keluar dengan aman
         if isinstance(payload, dict) and payload.get("action") == "shutdown":
+            try:
+                sys.stdout.flush()
+                sys.stderr.flush()
+            except Exception:
+                pass
+            logging.shutdown()
             return 0
     return 0
 

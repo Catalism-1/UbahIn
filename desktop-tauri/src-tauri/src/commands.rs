@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
 use std::process::Command;
-use tauri::State;
+use tauri::{State, WebviewWindow};
 
 use crate::app_log::{log_error, log_info, open_logs};
 use crate::sidecar::SidecarManager;
@@ -160,7 +160,12 @@ pub async fn start_pdf_to_jpg(
     manager: State<'_, SidecarManager>,
     payload: StartPdfToJpgPayload,
 ) -> Result<Value, String> {
-    manager.request("start_pdf_to_jpg", json!(payload)).await
+    let job_id = payload.job_id.clone();
+    let response = manager.request("start_pdf_to_jpg", json!(payload)).await?;
+    if response.get("ok").and_then(Value::as_bool) == Some(true) {
+        manager.track_active_job(job_id);
+    }
+    Ok(response)
 }
 
 #[tauri::command]
@@ -226,7 +231,41 @@ pub async fn cancel_engine_job(
     };
 
     log_info(format!("cancel requested for job={job_id}"));
-    manager.request("cancel_job", json!({ "job_id": job_id })).await
+    manager
+        .request("cancel_job", json!({ "job_id": job_id }))
+        .await
+}
+
+#[tauri::command]
+pub async fn cancel_active_job_and_close(
+    manager: State<'_, SidecarManager>,
+    window: WebviewWindow,
+    job_id: Option<String>,
+) -> Result<Value, String> {
+    log_info(format!(
+        "cancel and close requested job={}",
+        job_id.as_deref().unwrap_or("active")
+    ));
+
+    if !manager.begin_shutdown() {
+        log_info("cancel and close ignored: shutdown already in progress");
+        return Ok(json!({
+            "ok": true,
+            "data": { "status": "already_shutting_down" }
+        }));
+    }
+
+    let report = manager.shutdown_for_app_close(job_id).await;
+    log_info("final app exit");
+    window.destroy().map_err(|error| {
+        log_error(format!("final window destroy failed: {error}"));
+        "Window aplikasi tidak dapat ditutup.".to_string()
+    })?;
+
+    Ok(json!({
+        "ok": true,
+        "data": report
+    }))
 }
 
 // ----------------------------------------------------------------- settings

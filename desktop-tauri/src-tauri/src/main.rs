@@ -1,9 +1,12 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod app_log;
 mod commands;
 mod sidecar;
 
 use app_log::{log_error, log_info};
-use tauri::{LogicalSize, Manager, Size};
+use serde_json::json;
+use tauri::{Emitter, LogicalSize, Manager, Size, WindowEvent};
 use tauri_plugin_window_state::{StateFlags, WindowExt};
 
 fn setup_panic_hook() {
@@ -22,7 +25,9 @@ fn setup_panic_hook() {
             .unwrap_or_default()
             .as_secs();
         let local_app_data = std::env::var("LOCALAPPDATA").unwrap_or_else(|_| ".".to_string());
-        let log_dir = std::path::PathBuf::from(local_app_data).join("Ubahin").join("logs");
+        let log_dir = std::path::PathBuf::from(local_app_data)
+            .join("Ubahin")
+            .join("logs");
         let _ = std::fs::create_dir_all(&log_dir);
         let error_file = log_dir.join("last_error.txt");
         let detail_log = log_dir.join("tauri.log");
@@ -43,6 +48,59 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .on_window_event(|window, event| {
+            let WindowEvent::CloseRequested { api, .. } = event else {
+                return;
+            };
+            if window.label() != "main" {
+                return;
+            }
+
+            let app = window.app_handle().clone();
+            let manager_state = app.state::<sidecar::SidecarManager>();
+            let active_jobs = manager_state.active_job_ids();
+            log_info(format!(
+                "close requested active_jobs={} shutting_down={}",
+                active_jobs.len(),
+                manager_state.is_shutting_down()
+            ));
+
+            api.prevent_close();
+
+            if manager_state.is_shutting_down() {
+                log_info("close ignored: shutdown already in progress");
+                return;
+            }
+
+            if !active_jobs.is_empty() {
+                log_info(format!(
+                    "active job state at close: {}",
+                    active_jobs.join(",")
+                ));
+                if let Err(error) = window.emit(
+                    "app://close-active-job",
+                    json!({ "active_job_id": active_jobs.first().cloned() }),
+                ) {
+                    log_error(format!("failed to emit close active job event: {error}"));
+                }
+                return;
+            }
+
+            if !manager_state.begin_shutdown() {
+                log_info("close ignored: shutdown flag already set");
+                return;
+            }
+
+            let manager = manager_state.inner().clone();
+            let window = window.clone();
+            tauri::async_runtime::spawn(async move {
+                let _report = manager.shutdown_sidecar().await;
+                log_info("final app exit");
+                if let Err(error) = window.destroy() {
+                    log_error(format!("final window destroy failed: {error}"));
+                }
+            });
+        })
         .setup(|app| {
             app.manage(sidecar::SidecarManager::new(app.handle().clone()));
             log_info("startup window: default=1440x900 min=1100x700 native_decorations=true");
@@ -51,7 +109,9 @@ fn main() {
                 match window.restore_state(StateFlags::all()) {
                     Ok(_) => log_info("window state restored"),
                     Err(error) => {
-                        log_error(format!("window state restore failed, using fallback: {error}"));
+                        log_error(format!(
+                            "window state restore failed, using fallback: {error}"
+                        ));
                         if let Err(size_error) = window.set_size(Size::Logical(LogicalSize {
                             width: 1440.0,
                             height: 900.0,
@@ -90,6 +150,7 @@ fn main() {
             commands::open_log_folder,
             commands::log_window_event,
             commands::cancel_engine_job,
+            commands::cancel_active_job_and_close,
             commands::get_settings,
             commands::save_settings,
             commands::select_default_output_directory,

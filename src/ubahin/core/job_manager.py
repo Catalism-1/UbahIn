@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -172,11 +173,15 @@ class JobManager:
     def clear_history(self) -> None:
         self.history_service.clear()
 
-    def shutdown_gracefully(self, timeout: float = 10.0) -> None:
-        for job in self.get_active_jobs():
+    def shutdown_gracefully(self, timeout: float = 10.0) -> bool:
+        deadline = time.monotonic() + max(0.0, timeout)
+        active_jobs = self.get_active_jobs()
+        for job in active_jobs:
             job.cancellation_token.cancel()
         for thread in list(self._threads.values()):
-            thread.join(timeout)
+            remaining = max(0.0, deadline - time.monotonic())
+            thread.join(remaining)
+        return all(not thread.is_alive() for thread in list(self._threads.values()))
 
     def _run_job(self, job_id: str) -> None:
         job = self._jobs[job_id]
