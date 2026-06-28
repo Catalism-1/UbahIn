@@ -13,7 +13,18 @@ pub struct InspectPdfFilesPayload {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct InspectImageFilesPayload {
+    paths: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PdfInputFile {
+    file_id: String,
+    path: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ImageInputFile {
     file_id: String,
     path: String,
 }
@@ -28,6 +39,20 @@ pub struct StartPdfToJpgPayload {
     jpeg_quality: u8,
     optimize_file_size: bool,
     create_zip: bool,
+    open_output_after_finish: bool,
+    performance_mode: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StartImageToPdfPayload {
+    job_id: String,
+    files: Vec<ImageInputFile>,
+    output_directory: String,
+    output_filename: String,
+    page_size: String,
+    orientation: String,
+    margin: String,
+    fit_mode: String,
     open_output_after_finish: bool,
     performance_mode: String,
 }
@@ -139,6 +164,45 @@ pub async fn inspect_pdf_files(
     manager
         .request("inspect_pdf_files", json!({ "paths": payload.paths }))
         .await
+}
+
+#[tauri::command]
+pub fn pick_image_files() -> Result<Vec<String>, String> {
+    let paths = rfd::FileDialog::new()
+        .set_title("Pilih file Gambar")
+        .add_filter("Gambar (*.jpg, *.jpeg, *.png, *.webp)", &["jpg", "jpeg", "png", "webp"])
+        .pick_files()
+        .unwrap_or_default()
+        .into_iter()
+        .take(50)
+        .map(|path| path.to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+
+    log_info(format!("picked {} Gambar file(s)", paths.len()));
+    Ok(paths)
+}
+
+#[tauri::command]
+pub async fn inspect_image_files(
+    manager: State<'_, SidecarManager>,
+    payload: InspectImageFilesPayload,
+) -> Result<Value, String> {
+    manager
+        .request("inspect_image_files", json!({ "paths": payload.paths }))
+        .await
+}
+
+#[tauri::command]
+pub async fn start_image_to_pdf(
+    manager: State<'_, SidecarManager>,
+    payload: StartImageToPdfPayload,
+) -> Result<Value, String> {
+    let job_id = payload.job_id.clone();
+    let response = manager.request("start_image_to_pdf", json!(payload)).await?;
+    if response.get("ok").and_then(Value::as_bool) == Some(true) {
+        manager.track_active_job(job_id);
+    }
+    Ok(response)
 }
 
 #[tauri::command]
