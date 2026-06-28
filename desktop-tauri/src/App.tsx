@@ -6,6 +6,7 @@ import { EngineCheckPage } from './pages/EngineCheckPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { PdfToJpgPage } from './pages/PdfToJpgPage/PdfToJpgPage';
 import { HomePage } from './pages/HomePage';
+import { ImageToPdfPage } from './pages/ImageToPdfPage/ImageToPdfPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { useTauriEvent } from './hooks/useTauriEvent';
 import { cancelActiveJobAndClose, checkEngine, logWindowEvent, openLogFolder } from './services/engine';
@@ -36,7 +37,7 @@ const navigationItems: NavigationItem[] = [
 const pageMeta: Record<PageId, { title: string; eyebrow: string; description: string }> = {
   home: { title: 'Beranda', eyebrow: 'Ringkasan', description: 'Pilih alat yang kamu butuhkan.' },
   pdf: { title: 'PDF ke JPG', eyebrow: 'Alat PDF', description: 'Ubah halaman PDF menjadi gambar JPG.' },
-  image: { title: 'Ubah Gambar', eyebrow: 'Alat Gambar', description: 'Fitur gambar disiapkan setelah alur PDF stabil.' },
+  image: { title: 'Gambar ke PDF', eyebrow: 'Alat Gambar', description: 'Gabungkan beberapa gambar menjadi satu file PDF.' },
   history: { title: 'Riwayat', eyebrow: 'Aktivitas', description: 'Riwayat konversi lokal.' },
   settings: { title: 'Pengaturan', eyebrow: 'Preferensi', description: 'Pengaturan frontend sementara.' },
   engine: { title: 'Diagnostik Sistem', eyebrow: 'Diagnostik', description: 'Informasi status engine dan log.' },
@@ -140,6 +141,15 @@ export default function App() {
     if (activePage === 'pdf') {
       return (
         <PdfToJpgPage
+          isEngineReady={engineStatus === 'ready'}
+          settings={settings}
+          onJobStateChange={handlePdfJobStateChange}
+        />
+      );
+    }
+    if (activePage === 'image') {
+      return (
+        <ImageToPdfPage
           isEngineReady={engineStatus === 'ready'}
           settings={settings}
           onJobStateChange={handlePdfJobStateChange}
