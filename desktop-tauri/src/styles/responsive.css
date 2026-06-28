@@ -1,4 +1,4 @@
-@media (max-width: 1180px) {
+@media (max-width: 1279px) {
   :root {
     --app-sidebar-width: 76px;
   }
@@ -6,7 +6,18 @@
 
 @media (max-height: 760px) {
   :root {
-    --app-page-padding: 22px;
-    --app-topbar-height: 72px;
+    --app-page-padding: 20px;
+    --app-topbar-height: 70px;
+    --app-page-gap: 16px;
+    --app-hero-padding: 20px 24px;
+  }
+}
+
+@media (max-height: 700px) {
+  :root {
+    --app-page-padding: 16px;
+    --app-topbar-height: 64px;
+    --app-page-gap: 12px;
+    --app-hero-padding: 14px 18px;
   }
 }

@@ -31,8 +31,4 @@
   transform: translateY(-50%);
 }
 
-@media (min-width: 1181px) {
-  .tooltip {
-    display: none;
-  }
-}
+

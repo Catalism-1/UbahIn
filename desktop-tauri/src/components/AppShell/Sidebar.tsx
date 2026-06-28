@@ -11,6 +11,9 @@ interface SidebarProps {
   theme: ThemePreference;
   onThemeChange: (theme: ThemePreference) => void;
   onNavigate: (page: PageId) => void;
+  isCompact: boolean;
+  isWidthCompact: boolean;
+  onToggleCollapse: () => void;
 }
 
 function engineLabel(status: EngineStatus): string {
@@ -26,10 +29,22 @@ function Icon({ name }: { name: string }) {
   if (name === 'pdf') return <svg {...common}><path d="M7 3h7l4 4v14H7z" /><path d="M14 3v5h4" /><path d="M9 13h6M9 17h4" /></svg>;
   if (name === 'image') return <svg {...common}><rect x="4" y="5" width="16" height="14" rx="2" /><path d="m7 16 3-3 3 3 2-2 2 2" /><circle cx="9" cy="9" r="1.2" /></svg>;
   if (name === 'history') return <svg {...common}><path d="M4 12a8 8 0 1 0 2.2-5.5" /><path d="M4 5v4h4M12 8v5l3 2" /></svg>;
+  if (name === 'collapse-left') return <svg {...common}><path d="m15 18-6-6 6-6" /></svg>;
+  if (name === 'collapse-right') return <svg {...common}><path d="m9 18 6-6-6-6" /></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1" /></svg>;
 }
 
-export function Sidebar({ items, activePage, engineStatus, theme, onThemeChange, onNavigate }: SidebarProps) {
+export function Sidebar({
+  items,
+  activePage,
+  engineStatus,
+  theme,
+  onThemeChange,
+  onNavigate,
+  isCompact,
+  isWidthCompact,
+  onToggleCollapse,
+}: SidebarProps) {
   return (
     <aside className={styles.sidebar}>
       <div className={styles.brand}>
@@ -61,7 +76,7 @@ export function Sidebar({ items, activePage, engineStatus, theme, onThemeChange,
             </button>
           );
           return (
-            <Tooltip key={item.id} label={item.label}>
+            <Tooltip key={item.id} label={item.label} disabled={!isCompact}>
               {button}
             </Tooltip>
           );
@@ -69,7 +84,20 @@ export function Sidebar({ items, activePage, engineStatus, theme, onThemeChange,
       </nav>
 
       <div className={styles.sidebarFooter}>
-        <ThemeToggle value={theme} onChange={onThemeChange} />
+        {!isWidthCompact && (
+          <button
+            type="button"
+            className={styles.collapseButton}
+            onClick={onToggleCollapse}
+            aria-label={isCompact ? 'Tampilkan menu' : 'Sembunyikan menu'}
+          >
+            <span className={styles.collapseIcon}>
+              <Icon name={isCompact ? 'collapse-right' : 'collapse-left'} />
+            </span>
+            {!isCompact && <span className={styles.collapseLabel}>Sembunyikan Menu</span>}
+          </button>
+        )}
+        <ThemeToggle value={theme} onChange={onThemeChange} compact={isCompact} />
         <div className={styles.engineMini}>
           <strong>{engineLabel(engineStatus)}</strong>
           <span>Status engine lokal</span>

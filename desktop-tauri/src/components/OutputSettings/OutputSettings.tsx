@@ -95,9 +95,11 @@ export function OutputSettings({
         </div>
       </dl>
 
-      <button type="button" className={styles.startButton} onClick={onStart} disabled={!canStart || disabled}>
-        Mulai Ubah File
-      </button>
+      <div className={styles.actionArea}>
+        <button type="button" className={styles.startButton} onClick={onStart} disabled={!canStart || disabled}>
+          Mulai Ubah File
+        </button>
+      </div>
     </aside>
   );
 }

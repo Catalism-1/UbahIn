@@ -4,9 +4,13 @@ import './Tooltip.css';
 interface TooltipProps {
   label: string;
   children: ReactNode;
+  disabled?: boolean;
 }
 
-export function Tooltip({ label, children }: TooltipProps) {
+export function Tooltip({ label, children, disabled = false }: TooltipProps) {
+  if (disabled) {
+    return <>{children}</>;
+  }
   return (
     <span className="tooltip-wrap">
       {children}

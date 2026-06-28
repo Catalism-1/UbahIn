@@ -15,7 +15,7 @@
   display: grid;
   gap: 10px;
   min-width: 0;
-  padding: 28px 30px;
+  padding: var(--app-hero-padding, 28px 30px);
 }
 
 .hero h2 {
@@ -34,16 +34,23 @@
 .layout {
   align-items: start;
   display: grid;
-  gap: 18px;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 26vw, 370px);
   min-width: 0;
 }
 
-.mainColumn,
+.mainColumn {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
 .sideColumn {
   display: grid;
   gap: 18px;
   min-width: 0;
+  position: sticky;
+  top: 16px;
 }
 
 .card,
@@ -52,10 +59,65 @@
   border: 1px solid var(--border);
   border-radius: 18px;
   box-shadow: var(--shadow);
-  display: grid;
-  gap: 16px;
   min-width: 0;
   padding: 20px;
+}
+
+.progressCard {
+  display: grid;
+  gap: 16px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100vh - var(--app-topbar-height) - var(--app-page-padding) * 2 - 32px);
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Custom scrollbar for settings card */
+.card::-webkit-scrollbar {
+  width: 6px;
+}
+.card::-webkit-scrollbar-track {
+  background: transparent;
+}
+.card::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.actionArea {
+  position: sticky;
+  bottom: -20px;
+  margin-left: -20px;
+  margin-right: -20px;
+  margin-top: auto;
+  padding: 16px 20px 20px;
+  background: var(--surface);
+  z-index: 10;
+  border-top: 1px solid var(--border-2);
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+}
+
+.fileQueueScroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+}
+
+.fileQueueScroll::-webkit-scrollbar {
+  height: 6px;
+}
+.fileQueueScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.fileQueueScroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
 }
 
 .sectionHead {
@@ -151,7 +213,7 @@
   display: grid;
   gap: 12px;
   grid-template-columns: 42px minmax(0, 1fr) auto 34px;
-  min-width: 0;
+  min-width: 480px;
   padding: 12px;
 }
 
@@ -419,6 +481,7 @@
 
 .resultModal {
   max-width: 660px;
+  width: min(100%, 660px);
 }
 
 .resultHead {
@@ -487,13 +550,29 @@
   line-height: 1.45;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1240px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
   }
 
   .sideColumn {
-    order: -1;
+    position: static;
+  }
+
+  .card {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .actionArea {
+    position: static;
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    padding: 16px 0 0;
+    border-top: none;
+    border-radius: 0;
   }
 
   .presetGrid {
@@ -503,14 +582,38 @@
 
 @media (max-height: 760px) {
   .hero {
-    padding: 22px 24px;
+    padding: var(--app-hero-padding, 22px 24px);
   }
 
   .hero h2 {
-    font-size: 26px;
+    font-size: 25px;
   }
 
   .uploadZone {
-    min-height: 128px;
+    min-height: 120px;
+    padding: 18px;
+  }
+}
+
+@media (max-height: 700px) {
+  .hero {
+    padding: var(--app-hero-padding, 14px 18px);
+  }
+
+  .hero h2 {
+    font-size: 21px;
+  }
+
+  .hero p {
+    font-size: 13px;
+  }
+
+  .uploadZone {
+    min-height: 100px;
+    padding: 12px;
+  }
+
+  .uploadZone strong {
+    font-size: 16px;
   }
 }

@@ -53,36 +53,38 @@ export function FileQueue({ files, disabled, onPickFiles, onRemoveFile, onClearF
         <small>File diperiksa lebih dulu sebelum dikonversi.</small>
       </button>
 
-      <div className={styles.fileList}>
-        {files.length === 0 ? (
-          <div className={styles.queueEmpty}>Belum ada file PDF di antrean.</div>
-        ) : (
-          files.map((file) => (
-            <article key={file.fileId} className={`${styles.fileItem} ${file.status === 'failed' ? styles.fileFailed : ''}`}>
-              <span className={styles.pdfMark}>PDF</span>
-              <div className={styles.fileMain}>
-                <strong title={file.path}>{file.filename}</strong>
-                <span>
-                  {formatBytes(file.sizeBytes)} - {file.pageCount > 0 ? `${file.pageCount} halaman` : 'Halaman tidak terbaca'}
+      <div className={styles.fileQueueScroll}>
+        <div className={styles.fileList}>
+          {files.length === 0 ? (
+            <div className={styles.queueEmpty}>Belum ada file PDF di antrean.</div>
+          ) : (
+            files.map((file) => (
+              <article key={file.fileId} className={`${styles.fileItem} ${file.status === 'failed' ? styles.fileFailed : ''}`}>
+                <span className={styles.pdfMark}>PDF</span>
+                <div className={styles.fileMain}>
+                  <strong title={file.filename}>{file.filename}</strong>
+                  <span>
+                    {formatBytes(file.sizeBytes)} - {file.pageCount > 0 ? `${file.pageCount} halaman` : 'Halaman tidak terbaca'}
+                  </span>
+                  {file.warning ? <em>{file.warning}</em> : null}
+                  {file.error ? <em>{file.error}</em> : null}
+                </div>
+                <span className={`${styles.fileStatus} ${file.status === 'failed' ? styles.bad : styles.good}`}>
+                  {statusLabel(file)}
                 </span>
-                {file.warning ? <em>{file.warning}</em> : null}
-                {file.error ? <em>{file.error}</em> : null}
-              </div>
-              <span className={`${styles.fileStatus} ${file.status === 'failed' ? styles.bad : styles.good}`}>
-                {statusLabel(file)}
-              </span>
-              <button
-                type="button"
-                className={styles.removeButton}
-                aria-label={`Hapus ${file.filename}`}
-                onClick={() => onRemoveFile(file.fileId)}
-                disabled={disabled}
-              >
-                X
-              </button>
-            </article>
-          ))
-        )}
+                <button
+                  type="button"
+                  className={styles.removeButton}
+                  aria-label={`Hapus ${file.filename}`}
+                  onClick={() => onRemoveFile(file.fileId)}
+                  disabled={disabled}
+                >
+                  X
+                </button>
+              </article>
+            ))
+          )}
+        </div>
       </div>
     </section>
   );

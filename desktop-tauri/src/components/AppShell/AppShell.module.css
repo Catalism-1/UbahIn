@@ -1,15 +1,18 @@
 .shell {
-  --app-sidebar-width: 232px;
-  --app-topbar-height: 82px;
-  --app-page-padding: 28px;
   background: var(--bg);
   color: var(--text);
   display: grid;
   grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+  transition: grid-template-columns 0.15s ease;
+}
+
+.shell.compact {
+  --app-sidebar-width: 76px;
 }
 
 .sidebar {
@@ -240,45 +243,82 @@
   padding: var(--app-page-padding);
 }
 
-@media (max-width: 1180px) {
-  .shell {
-    grid-template-columns: 76px minmax(0, 1fr);
-  }
+.shell.compact .sidebar {
+  align-items: center;
+  padding-left: 10px;
+  padding-right: 10px;
+}
 
-  .sidebar {
-    align-items: center;
-    padding-left: 10px;
-    padding-right: 10px;
-  }
+.shell.compact .brand {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
 
-  .brand {
-    justify-content: center;
-    padding-left: 0;
-    padding-right: 0;
-  }
+.shell.compact .brandText,
+.shell.compact .navLabel,
+.shell.compact .engineMini,
+.shell.compact .version {
+  display: none;
+}
 
-  .brandText,
-  .navLabel,
-  .engineMini,
-  .version {
-    display: none;
-  }
+.shell.compact .navItem {
+  justify-content: center;
+  padding: 0;
+  width: 44px;
+}
 
-  .navItem {
-    justify-content: center;
-    padding: 0;
-    width: 44px;
-  }
+.shell.compact .sidebarFooter {
+  justify-items: center;
+  padding-left: 0;
+  padding-right: 0;
+}
 
-  .sidebarFooter {
-    justify-items: center;
-    padding-left: 0;
-    padding-right: 0;
-  }
+.shell.compact .topbar {
+  gap: 12px;
+}
 
-  .topbar {
-    gap: 12px;
-  }
+.collapseButton {
+  align-items: center;
+  background: transparent;
+  border-radius: 11px;
+  color: var(--text-2);
+  display: flex;
+  gap: 13px;
+  height: 40px;
+  min-width: 0;
+  padding: 0 13px;
+  text-align: left;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease;
+  width: 100%;
+}
+
+.collapseButton:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.collapseIcon {
+  align-items: center;
+  display: grid;
+  flex: 0 0 18px;
+  justify-content: center;
+}
+
+.collapseLabel {
+  font-size: 13.5px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell.compact .collapseButton {
+  justify-content: center;
+  padding: 0;
+  width: 44px;
 }
 
 @media (max-height: 760px) {
