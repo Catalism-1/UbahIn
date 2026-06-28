@@ -33,6 +33,9 @@ export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: Im
       orientation: 'auto',
       margin: 'normal',
       fitMode: 'contain',
+      imageQualityPreset: 'balanced',
+      jpegQuality: 85,
+      optimizePdfSize: true,
       openOutputAfterFinish: settings.open_output_after_finish,
       performanceMode: settings.performance_mode,
     }),
@@ -318,6 +321,79 @@ export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: Im
               </select>
             </div>
 
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Kualitas Gambar dalam PDF</label>
+              <select
+                className={styles.selectField}
+                value={job.options.imageQualityPreset}
+                onChange={(e) => {
+                  const val = e.target.value as any;
+                  let q = job.options.jpegQuality;
+                  let opt = job.options.optimizePdfSize;
+                  if (val === 'high') {
+                    q = 95;
+                    opt = false;
+                  } else if (val === 'balanced') {
+                    q = 85;
+                    opt = true;
+                  } else if (val === 'compact') {
+                    q = 70;
+                    opt = true;
+                  }
+                  job.setOptions((current) => ({
+                    ...current,
+                    imageQualityPreset: val,
+                    jpegQuality: q,
+                    optimizePdfSize: opt,
+                  }));
+                }}
+                disabled={job.isBusy}
+              >
+                <option value="high">Tinggi (Kualitas 95, Tanpa Optimasi)</option>
+                <option value="balanced">Seimbang (Kualitas 85, Optimasi Ukuran)</option>
+                <option value="compact">Hemat (Kualitas 70, Optimasi Ukuran)</option>
+                <option value="custom">Kustom</option>
+              </select>
+            </div>
+
+            {job.options.imageQualityPreset === 'custom' && (
+              <div className={styles.formGroup}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <label className={styles.formLabel}>Kualitas Kustom: {job.options.jpegQuality}</label>
+                </div>
+                <input
+                  type="range"
+                  min="50"
+                  max="95"
+                  step="1"
+                  value={job.options.jpegQuality}
+                  onChange={(e) => {
+                    const q = parseInt(e.target.value, 10);
+                    job.setOptions((current) => ({ ...current, jpegQuality: q }));
+                  }}
+                  disabled={job.isBusy}
+                  style={{ width: '100%', accentColor: 'var(--accent)' }}
+                />
+              </div>
+            )}
+
+            <div className={styles.toggleRow} onClick={() => !job.isBusy && job.setOptions(c => ({ ...c, optimizePdfSize: !c.optimizePdfSize }))}>
+              <span className={styles.toggleLabel}>Optimalkan ukuran PDF</span>
+              <label className={styles.switch}>
+                <input
+                  type="checkbox"
+                  checked={job.options.optimizePdfSize}
+                  disabled={job.isBusy}
+                  onChange={() => {}}
+                />
+                <span className={styles.slider} />
+              </label>
+            </div>
+
+            <small style={{ display: 'block', color: 'var(--text-3)', fontSize: 11, fontStyle: 'italic', marginTop: -6, marginBottom: 8 }}>
+              Kualitas memengaruhi ukuran PDF hasil, bukan urutan atau ukuran halaman.
+            </small>
+
             <div className={styles.toggleRow} onClick={() => !job.isBusy && handleToggle('openOutputAfterFinish')}>
               <span className={styles.toggleLabel}>Buka folder setelah selesai</span>
               <label className={styles.switch}>
@@ -356,107 +432,135 @@ export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: Im
         onConfirm={job.confirmClearFiles}
       />
 
-      {job.showResult && job.result ? (
-        <div className="app-modal-root" role="presentation" onMouseDown={() => job.setShowResult(false)}>
-          <section
-            className="app-modal"
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(event) => event.stopPropagation()}
-            style={{ width: 'min(100%, 600px)' }}
-          >
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}>
-              <div
-                style={{
-                  background: job.result.failed_files > 0 ? 'var(--red-light)' : 'var(--sage-light)',
-                  color: job.result.failed_files > 0 ? 'var(--red)' : 'var(--sage)',
-                  width: 46,
-                  height: 46,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 22,
-                  fontWeight: 'bold',
-                }}
-              >
-                {job.result.failed_files > 0 ? '!' : '✓'}
-              </div>
-              <div>
-                <h2 style={{ fontSize: 20 }}>
-                  {job.result.status === 'failed' ? 'Gagal Membuat PDF' : 'PDF Berhasil Dibuat'}
-                </h2>
-                <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-                  {job.result.failed_files > 0
-                    ? 'Proses selesai, namun beberapa file tidak dapat digabungkan.'
-                    : 'Seluruh gambar berhasil digabungkan menjadi file PDF tunggal.'}
-                </p>
-              </div>
-            </div>
-
-            <div className={styles.resultContent}>
-              <div className={styles.resultStats}>
-                <div className={styles.statItem}>
-                  <span className={styles.statLabel}>Berhasil</span>
-                  <span className={styles.statVal} style={{ color: 'var(--sage)' }}>
-                    {job.result.successful_files} gambar
-                  </span>
+      {job.showResult && job.result ? (() => {
+        const isSuccess = job.result.status !== 'failed' && job.result.output_paths.length > 0 && (job.result.output_size_bytes ?? 0) > 0;
+        
+        return (
+          <div className="app-modal-root" role="presentation" onMouseDown={() => job.setShowResult(false)}>
+            <section
+              className="app-modal"
+              role="dialog"
+              aria-modal="true"
+              onMouseDown={(event) => event.stopPropagation()}
+              style={{ width: 'min(100%, 600px)' }}
+            >
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}>
+                <div
+                  style={{
+                    background: !isSuccess ? 'var(--red-light)' : 'var(--sage-light)',
+                    color: !isSuccess ? 'var(--red)' : 'var(--sage)',
+                    width: 46,
+                    height: 46,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 22,
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {isSuccess ? '✓' : '!'}
                 </div>
-                <div className={styles.statItem}>
-                  <span className={styles.statLabel}>Gagal</span>
-                  <span className={styles.statVal} style={{ color: job.result.failed_files > 0 ? 'var(--red)' : 'var(--text-3)' }}>
-                    {job.result.failed_files} gambar
-                  </span>
-                </div>
-                <div className={styles.statItem}>
-                  <span className={styles.statLabel}>Ukuran PDF</span>
-                  <span className={styles.statVal}>
-                    {job.result.output_paths.length > 0 ? formatBytes(job.result.output_size_bytes || 0) : '-'}
-                  </span>
-                </div>
-                <div className={styles.statItem}>
-                  <span className={styles.statLabel}>Durasi</span>
-                  <span className={styles.statVal}>
-                    {job.result.duration_seconds.toFixed(1)} detik
-                  </span>
-                </div>
-              </div>
-
-              {job.result.output_paths.length > 0 && (
                 <div>
-                  <span className={styles.formLabel}>Lokasi Hasil</span>
-                  <span className={styles.resultPath}>{job.result.output_paths[0]}</span>
+                  <h2 style={{ fontSize: 20 }}>
+                    {isSuccess ? 'PDF Berhasil Dibuat' : 'Gagal Membuat PDF'}
+                  </h2>
+                  <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
+                    {isSuccess
+                      ? 'Seluruh gambar berhasil digabungkan menjadi file PDF tunggal.'
+                      : 'PDF belum berhasil dibuat. Silakan cek folder hasil atau buka log.'}
+                  </p>
                 </div>
-              )}
+              </div>
 
-              {job.result.warnings.length > 0 && (
-                <div style={{ background: 'var(--warning-light)', border: '1px solid var(--warning)', borderRadius: 10, padding: 12, fontSize: 12.5, color: 'var(--text)' }}>
-                  <strong>Peringatan rilis:</strong>
-                  <ul style={{ paddingLeft: 18, marginTop: 4 }}>
-                    {job.result.warnings.map((w, idx) => (
-                      <li key={idx}>{w}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+              <div className={styles.resultContent}>
+                {isSuccess ? (
+                  <>
+                    <div className={styles.resultStats}>
+                      <div className={styles.statItem}>
+                        <span className={styles.statLabel}>Berhasil</span>
+                        <span className={styles.statVal} style={{ color: 'var(--sage)' }}>
+                          {job.result.successful_files} gambar
+                        </span>
+                      </div>
+                      <div className={styles.statItem}>
+                        <span className={styles.statLabel}>Gagal</span>
+                        <span className={styles.statVal} style={{ color: job.result.failed_files > 0 ? 'var(--red)' : 'var(--text-3)' }}>
+                          {job.result.failed_files} gambar
+                        </span>
+                      </div>
+                      <div className={styles.statItem}>
+                        <span className={styles.statLabel}>Ukuran PDF</span>
+                        <span className={styles.statVal}>
+                          {formatBytes(job.result.output_size_bytes || 0)}
+                        </span>
+                      </div>
+                      <div className={styles.statItem}>
+                        <span className={styles.statLabel}>Durasi</span>
+                        <span className={styles.statVal}>
+                          {job.result.duration_seconds.toFixed(1)} detik
+                        </span>
+                      </div>
+                    </div>
 
-            <div className="button-row" style={{ justifyContent: 'flex-end', marginTop: 24, gap: 10 }}>
-              {job.result.warnings.length > 0 || job.result.errors.length > 0 ? (
-                <button type="button" className="secondary-button" onClick={job.openLogs}>
-                  Buka Log
+                    <div style={{ fontSize: 13, color: 'var(--text-2)', display: 'flex', gap: 12, marginTop: 4, background: 'var(--surface-2)', padding: '8px 12px', borderRadius: 8 }}>
+                      <span>Kualitas Preset: <strong>{job.result.image_quality_preset === 'high' ? 'Tinggi' : job.result.image_quality_preset === 'balanced' ? 'Seimbang' : job.result.image_quality_preset === 'compact' ? 'Hemat' : 'Kustom'}</strong></span>
+                      <span>kualitas JPEG: <strong>{job.result.jpeg_quality || 85}</strong></span>
+                    </div>
+
+                    <div>
+                      <span className={styles.formLabel}>Lokasi Hasil</span>
+                      <span className={styles.resultPath}>{job.result.output_paths[0]}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ display: 'grid', gap: 12 }}>
+                    <div style={{ background: 'var(--red-light)', border: '1px solid var(--red)', borderRadius: 10, padding: 12, fontSize: 13, color: 'var(--text)' }}>
+                      <strong>Detail error:</strong>
+                      <p style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>
+                        {job.result.errors.join('\n') || 'Terjadi kesalahan internal saat membuat file PDF.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {job.result.warnings.length > 0 && (
+                  <div style={{ background: 'var(--warning-light)', border: '1px solid var(--warning)', borderRadius: 10, padding: 12, fontSize: 12.5, color: 'var(--text)' }}>
+                    <strong>Peringatan:</strong>
+                    <ul style={{ paddingLeft: 18, marginTop: 4 }}>
+                      {job.result.warnings.map((w, idx) => (
+                        <li key={idx}>{w}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              <div className="button-row" style={{ justifyContent: 'flex-end', marginTop: 24, gap: 10 }}>
+                {(!isSuccess || job.result.warnings.length > 0 || job.result.errors.length > 0) ? (
+                  <button type="button" className="secondary-button" onClick={job.openLogs}>
+                    Buka Log
+                  </button>
+                ) : null}
+                
+                {isSuccess ? (
+                  <button type="button" className="secondary-button" onClick={job.openOutput}>
+                    Buka Folder Hasil
+                  </button>
+                ) : (
+                  <button type="button" className="secondary-button" onClick={() => job.setShowResult(false)}>
+                    Kembali ke Pengaturan
+                  </button>
+                )}
+                
+                <button type="button" className="primary-button" onClick={job.resetAfterResult}>
+                  Buat PDF Lagi
                 </button>
-              ) : null}
-              <button type="button" className="secondary-button" onClick={job.openOutput}>
-                Buka Folder Hasil
-              </button>
-              <button type="button" className="primary-button" onClick={job.resetAfterResult}>
-                Buat PDF Lagi
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
+              </div>
+            </section>
+          </div>
+        );
+      })() : null}
 
       <Toast messages={job.toasts} />
     </div>
