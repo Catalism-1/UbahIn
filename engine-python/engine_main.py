@@ -34,7 +34,8 @@ from ubahin.core import JobManager, ToolType
 from ubahin.core.job import Job
 from ubahin.core.models import AppError
 from ubahin.core.progress import ProgressInfo
-from ubahin.services import HistoryService
+from ubahin.services import HistoryService, SettingsService
+from ubahin.services.settings_service import AppSettings
 from ubahin.utils import open_in_file_manager
 
 
@@ -95,6 +96,13 @@ def _app_info() -> dict[str, Any]:
             "start_pdf_to_jpg",
             "cancel_job",
             "get_job_status",
+            "get_settings",
+            "save_settings",
+            "list_history",
+            "get_recent_history",
+            "delete_history_item",
+            "clear_history",
+            "open_history_output_directory",
             "shutdown",
         ],
     }
@@ -179,7 +187,9 @@ def _inspect_pdf(path: Path) -> dict[str, Any]:
 class EngineRuntime:
     def __init__(self) -> None:
         self._write_lock = threading.RLock()
-        self._manager = JobManager(history_service=HistoryService())
+        self._history = HistoryService()
+        self._manager = JobManager(history_service=self._history)
+        self._settings = SettingsService()
         self._job_meta: dict[str, dict[str, Any]] = {}
         self._wire_events()
 
@@ -209,6 +219,20 @@ class EngineRuntime:
             return self._cancel_job(request_id, body)
         if action == "get_job_status":
             return self._get_job_status(request_id, body)
+        if action == "get_settings":
+            return self._get_settings(request_id)
+        if action == "save_settings":
+            return self._save_settings(request_id, body)
+        if action == "list_history":
+            return self._list_history(request_id, body)
+        if action == "get_recent_history":
+            return self._get_recent_history(request_id, body)
+        if action == "delete_history_item":
+            return self._delete_history_item(request_id, body)
+        if action == "clear_history":
+            return self._clear_history(request_id, body)
+        if action == "open_history_output_directory":
+            return self._open_history_output_directory(request_id, body)
         if action == "shutdown":
             return _ok(request_id, {"message": "Engine ditutup dengan aman"})
         return _error(request_id, "Aksi engine tidak dikenal.", "UNKNOWN_ACTION")
@@ -303,6 +327,79 @@ class EngineRuntime:
             return _ok(request_id, {"job": job.to_dict()})
         except KeyError:
             return _error(request_id, "Job tidak ditemukan.", "JOB_NOT_FOUND")
+
+    # ---------------------------------------------------------------- settings
+    def _get_settings(self, request_id: str | None) -> dict[str, Any]:
+        try:
+            settings = self._settings.load()
+            return _ok(request_id, settings.to_protocol_dict())
+        except Exception:
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
+            # Default aman bila pembacaan gagal total.
+            return _ok(request_id, AppSettings().to_protocol_dict())
+
+    def _save_settings(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            settings = AppSettings.from_protocol_payload(payload)
+            self._settings.save(settings)
+            return _ok(request_id, settings.to_protocol_dict())
+        except Exception:
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
+            return _error(request_id, "Pengaturan tidak dapat disimpan.", "SETTINGS_SAVE_FAILED")
+
+    # ----------------------------------------------------------------- history
+    def _list_history(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            result = self._history.list_history(
+                limit=int(payload.get("limit") or 50),
+                offset=int(payload.get("offset") or 0),
+                status=str(payload.get("status") or "all"),
+                tool_type=str(payload.get("tool_type") or "all"),
+            )
+            return _ok(request_id, result)
+        except Exception:
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
+            return _error(request_id, "Riwayat tidak dapat dimuat.", "HISTORY_LIST_FAILED")
+
+    def _get_recent_history(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            items = self._history.get_recent(limit=int(payload.get("limit") or 5))
+            return _ok(request_id, {"items": items})
+        except Exception:
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
+            return _error(request_id, "Riwayat terbaru tidak dapat dimuat.", "HISTORY_RECENT_FAILED")
+
+    def _delete_history_item(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+        history_id = str(payload.get("history_id") or "").strip()
+        if not history_id:
+            return _error(request_id, "ID riwayat tidak valid.", "INVALID_PAYLOAD")
+        try:
+            # Menghapus record TIDAK menghapus file hasil pengguna.
+            deleted = self._history.delete(history_id)
+            return _ok(request_id, {"deleted": deleted, "history_id": history_id})
+        except Exception:
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
+            return _error(request_id, "Riwayat tidak dapat dihapus.", "HISTORY_DELETE_FAILED")
+
+    def _clear_history(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            removed = self._history.clear()
+            return _ok(request_id, {"removed": removed})
+        except Exception:
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
+            return _error(request_id, "Riwayat tidak dapat dibersihkan.", "HISTORY_CLEAR_FAILED")
+
+    def _open_history_output_directory(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+        history_id = str(payload.get("history_id") or "").strip()
+        if not history_id:
+            return _error(request_id, "ID riwayat tidak valid.", "INVALID_PAYLOAD")
+        output_dir = self._history.get_output_dir(history_id)
+        if not output_dir:
+            return _error(request_id, "Riwayat tidak ditemukan.", "HISTORY_NOT_FOUND")
+        path = Path(output_dir)
+        if not path.exists():
+            return _error(request_id, "Folder hasil tidak ditemukan.", "OUTPUT_DIR_MISSING")
+        return _ok(request_id, {"path": str(path), "exists": True})
 
     def _wire_events(self) -> None:
         def on_started(job: Job) -> None:
