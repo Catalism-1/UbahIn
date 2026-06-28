@@ -58,6 +58,7 @@ export function HistoryPage() {
 
   function handleFilterChange(next: HistoryFilter) {
     if (next === filter) return;
+    setLoading(true);
     setItems([]);
     setFilter(next);
   }
