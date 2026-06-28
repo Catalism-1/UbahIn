@@ -31,6 +31,9 @@ export const DEFAULT_IMAGE_JOB_DEFAULTS: ImageToPdfOptions = {
   orientation: 'auto',
   margin: 'normal',
   fitMode: 'contain',
+  imageQualityPreset: 'balanced',
+  jpegQuality: 85,
+  optimizePdfSize: true,
   openOutputAfterFinish: true,
   performanceMode: 'balanced',
 };

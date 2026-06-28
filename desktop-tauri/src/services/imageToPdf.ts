@@ -68,6 +68,9 @@ export async function startImageToPdf(
     orientation: options.orientation,
     margin: options.margin,
     fit_mode: options.fitMode,
+    image_quality_preset: options.imageQualityPreset,
+    jpeg_quality: options.jpegQuality,
+    optimize_pdf_size: options.optimizePdfSize,
     open_output_after_finish: options.openOutputAfterFinish,
     performance_mode: options.performanceMode,
   };

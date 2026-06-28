@@ -31,6 +31,8 @@ export interface ImageInspectionResult {
   thumbnail_data_uri: string | null;
 }
 
+export type ImageQualityPreset = 'high' | 'balanced' | 'compact' | 'custom';
+
 export interface ImageToPdfOptions {
   outputDirectory: string;
   outputFilename: string;
@@ -38,6 +40,9 @@ export interface ImageToPdfOptions {
   orientation: PdfOrientation;
   margin: PdfMargin;
   fitMode: ImageFitMode;
+  imageQualityPreset: ImageQualityPreset;
+  jpegQuality: number;
+  optimizePdfSize: boolean;
   openOutputAfterFinish: boolean;
   performanceMode: string;
 }
@@ -67,6 +72,8 @@ export interface ImageToPdfResult {
   duration_seconds: number;
   warnings: string[];
   errors: string[];
+  image_quality_preset?: string;
+  jpeg_quality?: number;
 }
 
 export type JobStatus = 'idle' | 'inspecting' | 'ready' | 'starting' | 'processing' | 'cancelling' | 'completed' | 'failed' | 'cancelled';

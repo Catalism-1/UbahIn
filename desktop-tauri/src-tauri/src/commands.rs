@@ -53,6 +53,9 @@ pub struct StartImageToPdfPayload {
     orientation: String,
     margin: String,
     fit_mode: String,
+    image_quality_preset: String,
+    jpeg_quality: u8,
+    optimize_pdf_size: bool,
     open_output_after_finish: bool,
     performance_mode: String,
 }
