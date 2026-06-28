@@ -355,6 +355,9 @@ class EngineRuntime:
             return _error(request_id, "Tidak ada file gambar valid untuk diproses.", "NO_INPUT_FILES")
 
         open_after_finish = bool(payload.get("open_output_after_finish", False))
+        image_quality_preset = str(payload.get("image_quality_preset") or "balanced")
+        jpeg_quality = int(payload.get("jpeg_quality") or 85)
+        optimize_pdf_size = bool(payload.get("optimize_pdf_size", True))
 
         try:
             job = self._manager.create_job(
@@ -367,12 +370,17 @@ class EngineRuntime:
                 orientation=str(payload.get("orientation") or "auto"),
                 margin=str(payload.get("margin") or "normal"),
                 fit_mode=str(payload.get("fit_mode") or "contain"),
+                image_quality_preset=image_quality_preset,
+                jpeg_quality=jpeg_quality,
+                optimize_pdf_size=optimize_pdf_size,
                 performance_mode=_performance_mode(payload.get("performance_mode")),
             )
             self._job_meta[job.job_id] = {
                 "total_pages": len(paths),
                 "open_after_finish": open_after_finish,
                 "file_ids": file_ids,
+                "image_quality_preset": image_quality_preset,
+                "jpeg_quality": jpeg_quality,
             }
             self._manager.start_job(job.job_id)
         except AppError as exc:
@@ -636,7 +644,11 @@ class EngineRuntime:
 
         def result_payload(job: Job) -> dict[str, Any]:
             result = job.result
-            output_paths = list(result.output_paths) if result else []
+            # Only include output paths that actually exist on disk
+            output_paths = [
+                path for path in (result.output_paths if result else [])
+                if path.exists() and path.stat().st_size > 0
+            ]
             jpg_outputs = [path for path in output_paths if path.suffix.lower() in {".jpg", ".jpeg"}]
             failed_files = []
             if result:
@@ -649,6 +661,7 @@ class EngineRuntime:
                     for item in result.file_results
                     if item.status == "failed"
                 ]
+            meta = self._job_meta.get(job.job_id, {})
             return {
                 "job_id": job.job_id,
                 "status": job.status.value,
@@ -659,13 +672,15 @@ class EngineRuntime:
                 "processed_files": result.processed_files if result else 0,
                 "total_outputs": len(output_paths),
                 "total_jpg": len(jpg_outputs),
-                "output_size_bytes": result.output_size if result else 0,
+                "output_size_bytes": sum(p.stat().st_size for p in output_paths if p.exists()),
                 "output_directory": str(job.options.output_dir),
                 "output_paths": [_json_safe_path(path) for path in output_paths],
                 "duration_seconds": job.duration,
                 "warnings": list(job.warnings),
                 "errors": list(job.errors),
                 "failed_file_details": failed_files,
+                "image_quality_preset": meta.get("image_quality_preset", ""),
+                "jpeg_quality": meta.get("jpeg_quality", 0),
             }
 
         def on_completed(job: Job) -> None:
