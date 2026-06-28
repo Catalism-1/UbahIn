@@ -42,6 +42,64 @@ pub struct OpenDirectoryPayload {
     path: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SaveSettingsPayload {
+    theme: String,
+    default_output_directory: String,
+    performance_mode: String,
+    default_pdf_preset: String,
+    default_dpi: u32,
+    default_jpeg_quality: u8,
+    create_zip_after_conversion: bool,
+    open_output_after_finish: bool,
+    notifications_enabled: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ListHistoryPayload {
+    #[serde(default = "default_history_limit")]
+    limit: u32,
+    #[serde(default)]
+    offset: u32,
+    #[serde(default = "default_filter")]
+    status: String,
+    #[serde(default = "default_filter")]
+    tool_type: String,
+}
+
+fn default_history_limit() -> u32 {
+    50
+}
+
+fn default_filter() -> String {
+    "all".to_string()
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RecentHistoryPayload {
+    #[serde(default = "default_recent_limit")]
+    limit: u32,
+}
+
+fn default_recent_limit() -> u32 {
+    5
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct HistoryIdPayload {
+    history_id: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ClearHistoryPayload {
+    #[serde(default = "default_scope")]
+    scope: String,
+}
+
+fn default_scope() -> String {
+    "all".to_string()
+}
+
 #[tauri::command]
 pub async fn check_engine(manager: State<'_, SidecarManager>) -> Result<Value, String> {
     manager.request("health", json!({})).await
@@ -169,4 +227,108 @@ pub async fn cancel_engine_job(
 
     log_info(format!("cancel requested for job={job_id}"));
     manager.request("cancel_job", json!({ "job_id": job_id })).await
+}
+
+// ----------------------------------------------------------------- settings
+
+#[tauri::command]
+pub async fn get_settings(manager: State<'_, SidecarManager>) -> Result<Value, String> {
+    manager.request("get_settings", json!({})).await
+}
+
+#[tauri::command]
+pub async fn save_settings(
+    manager: State<'_, SidecarManager>,
+    payload: SaveSettingsPayload,
+) -> Result<Value, String> {
+    manager.request("save_settings", json!(payload)).await
+}
+
+#[tauri::command]
+pub fn select_default_output_directory() -> Result<Option<String>, String> {
+    let directory = rfd::FileDialog::new()
+        .set_title("Pilih folder hasil default")
+        .pick_folder()
+        .map(|path| path.to_string_lossy().to_string());
+
+    if let Some(path) = &directory {
+        log_info(format!("selected default output directory: {path}"));
+    }
+
+    Ok(directory)
+}
+
+// ------------------------------------------------------------------ history
+
+#[tauri::command]
+pub async fn list_history(
+    manager: State<'_, SidecarManager>,
+    payload: ListHistoryPayload,
+) -> Result<Value, String> {
+    manager.request("list_history", json!(payload)).await
+}
+
+#[tauri::command]
+pub async fn get_recent_history(
+    manager: State<'_, SidecarManager>,
+    payload: RecentHistoryPayload,
+) -> Result<Value, String> {
+    manager.request("get_recent_history", json!(payload)).await
+}
+
+#[tauri::command]
+pub async fn delete_history_item(
+    manager: State<'_, SidecarManager>,
+    payload: HistoryIdPayload,
+) -> Result<Value, String> {
+    manager.request("delete_history_item", json!(payload)).await
+}
+
+#[tauri::command]
+pub async fn clear_history(
+    manager: State<'_, SidecarManager>,
+    payload: ClearHistoryPayload,
+) -> Result<Value, String> {
+    manager.request("clear_history", json!(payload)).await
+}
+
+#[tauri::command]
+pub async fn open_history_output_directory(
+    manager: State<'_, SidecarManager>,
+    payload: HistoryIdPayload,
+) -> Result<(), String> {
+    // Engine adalah pemilik database: ia memvalidasi keberadaan folder hasil.
+    let response = manager
+        .request("open_history_output_directory", json!(payload))
+        .await?;
+
+    if response.get("ok").and_then(Value::as_bool) != Some(true) {
+        let message = response
+            .get("error")
+            .and_then(|error| error.get("message"))
+            .and_then(Value::as_str)
+            .unwrap_or("Folder hasil tidak ditemukan.")
+            .to_string();
+        return Err(message);
+    }
+
+    let path = response
+        .get("data")
+        .and_then(|data| data.get("path"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+
+    if path.is_empty() || !Path::new(&path).exists() {
+        return Err("Folder hasil tidak ditemukan.".to_string());
+    }
+
+    Command::new("explorer")
+        .arg(&path)
+        .spawn()
+        .map_err(|error| {
+            log_error(format!("Gagal membuka folder riwayat {path}: {error}"));
+            "Folder hasil tidak dapat dibuka.".to_string()
+        })?;
+    Ok(())
 }

@@ -89,7 +89,15 @@ fn main() {
             commands::get_job_status,
             commands::open_log_folder,
             commands::log_window_event,
-            commands::cancel_engine_job
+            commands::cancel_engine_job,
+            commands::get_settings,
+            commands::save_settings,
+            commands::select_default_output_directory,
+            commands::list_history,
+            commands::get_recent_history,
+            commands::delete_history_item,
+            commands::clear_history,
+            commands::open_history_output_directory
         ])
         .run(tauri::generate_context!())
         .expect("error while running Ubahin");
