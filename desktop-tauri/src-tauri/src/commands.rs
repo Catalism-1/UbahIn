@@ -440,35 +440,36 @@ pub async fn open_history_output_directory(
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct InspectHeicFilesPayload {
+pub struct InspectImageConversionFilesPayload {
     pub paths: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct HeicInputFile {
+pub struct ImageConversionInputFile {
     pub file_id: String,
     pub path: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct StartHeicConversionPayload {
+pub struct StartImageConversionPayload {
     pub job_id: String,
-    pub files: Vec<HeicInputFile>,
+    pub files: Vec<ImageConversionInputFile>,
     pub output_directory: String,
     pub output_format: String,
-    pub jpeg_quality_preset: String,
     pub jpeg_quality: u8,
+    pub webp_quality: u8,
     pub png_compression_level: u8,
+    pub heic_quality: u8,
     pub preserve_metadata: bool,
     pub open_output_after_finish: bool,
     pub performance_mode: String,
 }
 
 #[tauri::command]
-pub fn pick_heic_files() -> Result<Vec<String>, String> {
+pub fn pick_conversion_files() -> Result<Vec<String>, String> {
     let paths = rfd::FileDialog::new()
-        .set_title("Pilih file HEIC atau HEIF")
-        .add_filter("HEIC/HEIF (*.heic, *.heif)", &["heic", "heif"])
+        .set_title("Pilih file Gambar")
+        .add_filter("Gambar (*.jpg, *.jpeg, *.png, *.webp, *.heic, *.heif)", &["jpg", "jpeg", "png", "webp", "heic", "heif"])
         .pick_files()
         .unwrap_or_default()
         .into_iter()
@@ -476,27 +477,27 @@ pub fn pick_heic_files() -> Result<Vec<String>, String> {
         .map(|path| path.to_string_lossy().to_string())
         .collect::<Vec<_>>();
 
-    log_info(format!("picked {} HEIC file(s)", paths.len()));
+    log_info(format!("picked {} Gambar file(s)", paths.len()));
     Ok(paths)
 }
 
 #[tauri::command]
-pub async fn inspect_heic_files(
+pub async fn inspect_image_conversion_files(
     manager: State<'_, SidecarManager>,
-    payload: InspectHeicFilesPayload,
+    payload: InspectImageConversionFilesPayload,
 ) -> Result<Value, String> {
     manager
-        .request("inspect_heic_files", json!({ "paths": payload.paths }))
+        .request("inspect_image_conversion_files", json!({ "paths": payload.paths }))
         .await
 }
 
 #[tauri::command]
-pub async fn start_heic_conversion(
+pub async fn start_image_conversion(
     manager: State<'_, SidecarManager>,
-    payload: StartHeicConversionPayload,
+    payload: StartImageConversionPayload,
 ) -> Result<Value, String> {
     let job_id = payload.job_id.clone();
-    let response = manager.request("start_heic_conversion", json!(payload)).await?;
+    let response = manager.request("start_image_conversion", json!(payload)).await?;
     if response.get("ok").and_then(Value::as_bool) == Some(true) {
         manager.track_active_job(job_id);
     }

@@ -9,15 +9,15 @@ from ubahin.core.job import Job
 from ubahin.core.models import AppError, JobOptions, JobStatus, ServiceResult, ToolType, utc_now
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.resource_governor import ResourceGovernor
-from ubahin.core.validation import validate_image_batch, validate_output_dir, validate_pdf_batch, validate_pdf_file, validate_heic_batch
+from ubahin.core.validation import validate_image_batch, validate_output_dir, validate_pdf_batch, validate_pdf_file, validate_conversion_input_files
 from ubahin.services import (
     CompressPdfOptions,
     CompressPdfService,
     HistoryService,
     ImageCompressOptions,
     ImageCompressService,
-    ImageConvertOptions,
-    ImageConvertService,
+    ImageConversionOptions,
+    ImageConversionService,
     ImageResizeOptions,
     ImageResizeService,
     ImageToPdfOptions,
@@ -29,8 +29,6 @@ from ubahin.services import (
     SplitPdfOptions,
     SplitPdfService,
     ZipService,
-    HeicToImageOptions,
-    HeicConversionService,
 )
 from ubahin.utils import estimated_output_bytes, get_logger
 
@@ -105,10 +103,10 @@ class JobManager:
             if len(job.input_files) != 1:
                 raise AppError("Fitur ini membutuhkan tepat satu file PDF.")
             validate_pdf_file(job.input_files[0])
-        elif job.tool_type in {ToolType.IMAGE_TO_PDF, ToolType.IMAGE_CONVERT, ToolType.IMAGE_RESIZE, ToolType.IMAGE_COMPRESS}:
+        elif job.tool_type in {ToolType.IMAGE_TO_PDF, ToolType.IMAGE_RESIZE, ToolType.IMAGE_COMPRESS}:
             validate_image_batch(job.input_files)
-        elif job.tool_type == ToolType.HEIC_TO_IMAGE:
-            validate_heic_batch(job.input_files)
+        elif job.tool_type == ToolType.IMAGE_CONVERT:
+            validate_conversion_input_files(job.input_files)
         job.status = JobStatus.PENDING
 
     def queue_job(self, job_id: str) -> None:
@@ -285,16 +283,18 @@ class JobManager:
                 job.cancellation_token,
                 progress,
             )
-        elif job.tool_type == ToolType.HEIC_TO_IMAGE:
-            result = HeicConversionService().convert(
+        elif job.tool_type == ToolType.IMAGE_CONVERT:
+            result = ImageConversionService().convert(
                 job.input_files,
-                HeicToImageOptions(
-                    output_dir=job.options.output_dir,
+                ImageConversionOptions(
+                    output_directory=job.options.output_dir,
                     output_format=str(params.get("output_format", "jpg")),
-                    jpeg_quality_preset=str(params.get("jpeg_quality_preset", "balanced")),
                     jpeg_quality=int(params.get("jpeg_quality", 85)),
+                    webp_quality=int(params.get("webp_quality", 85)),
                     png_compression_level=int(params.get("png_compression_level", 6)),
+                    heic_quality=int(params.get("heic_quality", 80)),
                     preserve_metadata=bool(params.get("preserve_metadata", False)),
+                    open_output_after_finish=bool(params.get("open_output_after_finish", True))
                 ),
                 job.cancellation_token,
                 progress,
@@ -317,13 +317,6 @@ class JobManager:
             result = CompressPdfService().compress(
                 job.input_files[0],
                 CompressPdfOptions(job.options.output_dir, str(params.get("preset", "Seimbang")), bool(params.get("keep_if_larger", False))),
-                job.cancellation_token,
-                progress,
-            )
-        elif job.tool_type == ToolType.IMAGE_CONVERT:
-            result = ImageConvertService().convert(
-                job.input_files,
-                ImageConvertOptions(job.options.output_dir, str(params.get("target_format", "JPEG")), int(params.get("quality", 90))),
                 job.cancellation_token,
                 progress,
             )

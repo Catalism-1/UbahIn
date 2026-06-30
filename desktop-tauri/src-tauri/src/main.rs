@@ -162,9 +162,9 @@ fn main() {
             commands::delete_history_item,
             commands::clear_history,
             commands::open_history_output_directory,
-            commands::pick_heic_files,
-            commands::inspect_heic_files,
-            commands::start_heic_conversion
+            commands::pick_conversion_files,
+            commands::inspect_image_conversion_files,
+            commands::start_image_conversion
         ])
         .run(tauri::generate_context!())
         .expect("error while running Ubahin");

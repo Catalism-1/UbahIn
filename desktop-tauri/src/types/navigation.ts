@@ -2,7 +2,7 @@ export type PageId =
   | 'home'
   | 'pdf'
   | 'image'
-  | 'heic'
+  | 'image-conv'
   | 'history'
   | 'settings'
   | 'engine'
