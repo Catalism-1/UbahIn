@@ -6,11 +6,12 @@ export interface ImageConversionInspectionResult {
     filename: string;
     size_bytes: number;
     format: string | null;
-    width: number;
-    height: number;
+    width: number | null;
+    height: number | null;
     status: 'ready' | 'failed';
     warning: string | null;
     error: string | null;
+    error_code?: string | null;
     thumbnail_data_uri: string | null;
 }
 

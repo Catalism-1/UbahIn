@@ -179,12 +179,21 @@ export function ImageConversionPage() {
         }
     };
 
+    const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
+    const toggleErrorDetail = (id: string) => {
+        setExpandedErrors(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
     const statusLabelFor = (item: typeof queue[number]) => {
         if (item.status === 'completed') {
             return <span className={`${styles.fileStatus} ${styles.statusCompleted}`}>Selesai</span>;
         }
         if (item.status === 'failed') {
-            return <span className={`${styles.fileStatus} ${styles.statusFailed}`}>Gagal</span>;
+            return <span className={`${styles.fileStatus} ${styles.statusFailed}`}>Tidak dapat dibaca</span>;
         }
         if (item.status === 'processing') {
             return <span className={`${styles.fileStatus} ${styles.statusProcessing}`}>{Math.round(item.progress)}%</span>;
@@ -265,21 +274,46 @@ export function ImageConversionPage() {
                                                     {item.filename}
                                                 </strong>
                                                 <div className={styles.metaRow}>
-                                                    <span className={styles.formatBadge}>
-                                                        {item.format ? item.format.toUpperCase() : 'Unknown'}
-                                                    </span>
-                                                    {item.width > 0 && item.height > 0 && (
+                                                    {item.status === 'failed' ? (
+                                                        <span className={`${styles.formatBadge} ${styles.formatBadgeFailed}`}>—</span>
+                                                    ) : (
+                                                        <span className={styles.formatBadge}>
+                                                            {item.format ? item.format.toUpperCase() : '…'}
+                                                        </span>
+                                                    )}
+                                                    {item.status !== 'failed' && item.width > 0 && item.height > 0 && (
                                                         <span>{item.width} × {item.height} px</span>
                                                     )}
-                                                    <span>{formatBytes(item.sizeBytes)}</span>
+                                                    {item.status !== 'failed' && item.sizeBytes > 0 && (
+                                                        <span>{formatBytes(item.sizeBytes)}</span>
+                                                    )}
                                                 </div>
-                                                {item.error && (
+                                                {item.status === 'failed' && item.error && (
+                                                    <>
+                                                        <em className={styles.errorText}>{item.error}</em>
+                                                        <button
+                                                            type="button"
+                                                            className={styles.detailToggle}
+                                                            onClick={() => toggleErrorDetail(item.id)}
+                                                        >
+                                                            {expandedErrors.has(item.id) ? 'Sembunyikan detail' : 'Lihat detail'}
+                                                        </button>
+                                                        {expandedErrors.has(item.id) && (
+                                                            <div className={styles.errorDetail}>
+                                                                <div><strong>Path:</strong> {item.path}</div>
+                                                                <div><strong>Ukuran:</strong> {item.sizeBytes > 0 ? formatBytes(item.sizeBytes) : '0 byte'}</div>
+                                                                <div><strong>Pesan:</strong> {item.error}</div>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                                {item.status !== 'failed' && item.error && (
                                                     <em className={styles.errorText}>{item.error}</em>
                                                 )}
-                                                {(item.status === 'processing' || item.status === 'completed' || item.status === 'failed') && (
+                                                {(item.status === 'processing' || item.status === 'completed') && (
                                                     <div className={styles.progressTrack}>
                                                         <span
-                                                            className={`${styles.progressFill} ${item.status === 'failed' ? styles.failed : ''} ${item.status === 'completed' ? styles.done : ''}`}
+                                                            className={`${styles.progressFill} ${item.status === 'completed' ? styles.done : ''}`}
                                                             style={{ width: `${item.progress}%` }}
                                                         />
                                                     </div>

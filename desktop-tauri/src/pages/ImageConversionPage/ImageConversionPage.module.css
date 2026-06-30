@@ -306,6 +306,46 @@
   font-style: normal;
 }
 
+.formatBadgeFailed {
+  background: rgba(212, 123, 123, 0.18) !important;
+  color: var(--error) !important;
+}
+
+.detailToggle {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 2px;
+  padding: 4px 9px;
+}
+
+.detailToggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.errorDetail {
+  background: rgba(212, 123, 123, 0.08);
+  border: 1px solid rgba(212, 123, 123, 0.25);
+  border-radius: 10px;
+  color: var(--text-2);
+  display: grid;
+  font-size: 11.5px;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  word-break: break-all;
+}
+
+.errorDetail strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
 .progressTrack {
   background: var(--border-2);
   border-radius: 999px;

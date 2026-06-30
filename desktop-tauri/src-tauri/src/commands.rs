@@ -477,7 +477,13 @@ pub fn pick_conversion_files() -> Result<Vec<String>, String> {
         .map(|path| path.to_string_lossy().to_string())
         .collect::<Vec<_>>();
 
-    log_info(format!("picked {} Gambar file(s)", paths.len()));
+    log_info(format!("IMAGE_PICKER_SELECTED count={}", paths.len()));
+    for path in &paths {
+        let exists = Path::new(path).exists();
+        log_info(format!(
+            "IMAGE_PICKER_PATH exists={exists} path={path:?}"
+        ));
+    }
     Ok(paths)
 }
 
@@ -486,9 +492,42 @@ pub async fn inspect_image_conversion_files(
     manager: State<'_, SidecarManager>,
     payload: InspectImageConversionFilesPayload,
 ) -> Result<Value, String> {
-    manager
-        .request("inspect_image_conversion_files", json!({ "paths": payload.paths }))
-        .await
+    log_info(format!(
+        "IMAGE_INSPECT_REQUEST count={}",
+        payload.paths.len()
+    ));
+    for path in &payload.paths {
+        let exists = Path::new(path).exists();
+        log_info(format!(
+            "IMAGE_INSPECT_REQUEST_PATH exists={exists} path={path:?}"
+        ));
+    }
+
+    let response = manager
+        .request(
+            "inspect_image_conversion_files",
+            json!({ "paths": payload.paths }),
+        )
+        .await?;
+
+    let ok_flag = response.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    if !ok_flag {
+        let err_msg = response
+            .get("error")
+            .and_then(|e| e.get("message"))
+            .and_then(Value::as_str)
+            .unwrap_or("unknown engine error");
+        log_error(format!("IMAGE_INSPECT_ENGINE_ERROR {err_msg}"));
+    } else {
+        let files_len = response
+            .get("data")
+            .and_then(|d| d.get("files"))
+            .and_then(Value::as_array)
+            .map(|arr| arr.len())
+            .unwrap_or(0);
+        log_info(format!("IMAGE_INSPECT_RESPONSE_OK files={files_len}"));
+    }
+    Ok(response)
 }
 
 #[tauri::command]

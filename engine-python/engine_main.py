@@ -242,78 +242,211 @@ def _inspect_pdf(path: Path) -> dict[str, Any]:
     return base
 
 
+SUPPORTED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+
+
 def _inspect_image(path: Path) -> dict[str, Any]:
     import base64
     from io import BytesIO
-    resolved = path.expanduser().resolve()
-    file_id = str(uuid.uuid4())
+
+    raw_path = str(path)
+    _elog(f"IMAGE_INSPECT_ENGINE_RECEIVED path={raw_path!r}")
+
+    try:
+        resolved = path.expanduser().resolve()
+    except Exception as exc:
+        _elog(
+            f"IMAGE_INSPECT_RESPONSE status=error reason=path_normalize "
+            f"exc={type(exc).__name__} msg={exc!r} path={raw_path!r}"
+        )
+        return {
+            "path": raw_path,
+            "file_id": str(uuid.uuid4()),
+            "filename": Path(raw_path).name or raw_path,
+            "size_bytes": 0,
+            "format": None,
+            "width": None,
+            "height": None,
+            "status": "failed",
+            "warning": None,
+            "error": "Path file tidak valid.",
+            "error_code": "PATH_INVALID",
+            "thumbnail_data_uri": None,
+        }
+
     filename = resolved.name
-    size_bytes = resolved.stat().st_size if resolved.exists() else 0
+    exists = resolved.exists()
+    try:
+        size_bytes = resolved.stat().st_size if exists else 0
+    except OSError as exc:
+        _elog(
+            f"IMAGE_INSPECT_RESPONSE status=error reason=stat_failed "
+            f"exc={type(exc).__name__} msg={exc!r} path={resolved!s}"
+        )
+        return {
+            "path": str(resolved),
+            "file_id": str(uuid.uuid4()),
+            "filename": filename,
+            "size_bytes": 0,
+            "format": None,
+            "width": None,
+            "height": None,
+            "status": "failed",
+            "warning": None,
+            "error": "Gagal membaca info file dari disk.",
+            "error_code": "STAT_FAILED",
+            "thumbnail_data_uri": None,
+        }
+
+    _elog(
+        f"IMAGE_INSPECT_FILE_INFO exists={exists} size_bytes={size_bytes} "
+        f"suffix={resolved.suffix!r} path={resolved!s}"
+    )
+
     base: dict[str, Any] = {
         "path": str(resolved),
-        "file_id": file_id,
+        "file_id": str(uuid.uuid4()),
         "filename": filename,
         "size_bytes": size_bytes,
         "format": None,
-        "width": 0,
-        "height": 0,
+        "width": None,
+        "height": None,
         "status": "ready",
         "warning": None,
         "error": None,
+        "error_code": None,
         "thumbnail_data_uri": None,
     }
-    try:
-        if not resolved.exists():
-            raise AppError("File tidak ditemukan.")
-        if resolved.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}:
-            raise AppError("Format gambar tidak didukung.")
-        
-        from PIL import Image
-        with Image.open(resolved) as img:
-            base["format"] = img.format
-            base["width"] = img.width
-            base["height"] = img.height
-            
-            # Generate thumbnail: max 160px on longest side
-            thumb_w = img.width
-            thumb_h = img.height
-            if thumb_w > 160 or thumb_h > 160:
-                if thumb_w > thumb_h:
-                    thumb_h = int(round(160 * (thumb_h / thumb_w)))
-                    thumb_w = 160
-                else:
-                    thumb_w = int(round(160 * (thumb_w / thumb_h)))
-                    thumb_h = 160
-                    
-            thumb_w = max(thumb_w, 1)
-            thumb_h = max(thumb_h, 1)
-            
-            thumb = img.copy()
-            thumb.thumbnail((thumb_w, thumb_h), Image.Resampling.LANCZOS)
-            
-            thumb_rgb = thumb
-            if thumb.mode in ("RGBA", "LA") or (thumb.mode == "P" and "transparency" in thumb.info):
-                thumb_rgb = Image.new("RGB", thumb.size, "white")
-                thumb_rgb.paste(thumb, mask=thumb.convert("RGBA").split()[3])
-            elif thumb.mode != "RGB":
-                thumb_rgb = thumb.convert("RGB")
-                
-            buffered = BytesIO()
-            thumb_rgb.save(buffered, format="JPEG", quality=75)
-            img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-            base["thumbnail_data_uri"] = f"data:image/jpeg;base64,{img_str}"
-            
-            if thumb_rgb is not thumb:
-                thumb_rgb.close()
-            thumb.close()
-    except Exception as exc:
+
+    def _fail(error: str, code: str, reason: str, exc: Exception | None = None) -> dict[str, Any]:
         base["status"] = "failed"
-        base["error"] = str(exc)
+        base["error"] = error
+        base["error_code"] = code
+        base["format"] = None
+        base["width"] = None
+        base["height"] = None
+        base["thumbnail_data_uri"] = None
+        if exc is not None:
+            _elog(
+                f"IMAGE_INSPECT_RESPONSE status=error reason={reason} code={code} "
+                f"exc={type(exc).__name__} msg={exc!r} path={resolved!s} size_bytes={size_bytes}"
+            )
+        else:
+            _elog(
+                f"IMAGE_INSPECT_RESPONSE status=error reason={reason} code={code} "
+                f"path={resolved!s} size_bytes={size_bytes}"
+            )
+        return base
+
+    if not exists:
+        return _fail("File tidak ditemukan di lokasi semula.", "FILE_NOT_FOUND", "missing")
+    if size_bytes == 0:
+        return _fail(
+            "File kosong atau tidak dapat dibaca. Pilih file gambar lain.",
+            "FILE_EMPTY",
+            "empty",
+        )
+    suffix = resolved.suffix.lower()
+    if suffix not in SUPPORTED_IMAGE_SUFFIXES:
+        return _fail(
+            f"Format {suffix or 'tidak diketahui'} belum didukung.",
+            "FORMAT_UNSUPPORTED",
+            "unsupported_suffix",
+        )
+    if suffix in {".heic", ".heif"} and not _heic_decoder_available():
+        return _fail(
+            "Decoder HEIC belum tersedia pada instalasi ini.",
+            "HEIC_DECODER_MISSING",
+            "heic_unavailable",
+        )
+
+    try:
+        from PIL import Image, UnidentifiedImageError
+    except Exception as exc:
+        return _fail(
+            "Pillow tidak tersedia di engine.",
+            "PILLOW_MISSING",
+            "pillow_missing",
+            exc,
+        )
+
+    try:
+        with Image.open(resolved) as img:
+            img_format = img.format or suffix.lstrip(".").upper()
+            width = img.width
+            height = img.height
+            _elog(
+                f"IMAGE_INSPECT_PILLOW_OPEN format={img_format} "
+                f"size={width}x{height} mode={img.mode} path={resolved!s}"
+            )
+            base["format"] = img_format
+            base["width"] = width
+            base["height"] = height
+
+            try:
+                thumb_w = width
+                thumb_h = height
+                if thumb_w > 160 or thumb_h > 160:
+                    if thumb_w > thumb_h:
+                        thumb_h = int(round(160 * (thumb_h / thumb_w)))
+                        thumb_w = 160
+                    else:
+                        thumb_w = int(round(160 * (thumb_w / thumb_h)))
+                        thumb_h = 160
+                thumb_w = max(thumb_w, 1)
+                thumb_h = max(thumb_h, 1)
+
+                thumb = img.copy()
+                thumb.thumbnail((thumb_w, thumb_h), Image.Resampling.LANCZOS)
+
+                thumb_rgb = thumb
+                if thumb.mode in ("RGBA", "LA") or (thumb.mode == "P" and "transparency" in thumb.info):
+                    thumb_rgb = Image.new("RGB", thumb.size, "white")
+                    thumb_rgb.paste(thumb, mask=thumb.convert("RGBA").split()[3])
+                elif thumb.mode != "RGB":
+                    thumb_rgb = thumb.convert("RGB")
+
+                buffered = BytesIO()
+                thumb_rgb.save(buffered, format="JPEG", quality=75)
+                img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+                base["thumbnail_data_uri"] = f"data:image/jpeg;base64,{img_str}"
+
+                if thumb_rgb is not thumb:
+                    thumb_rgb.close()
+                thumb.close()
+            except Exception as exc:
+                base["warning"] = "Thumbnail gagal dibuat."
+                _elog(
+                    f"IMAGE_INSPECT_THUMBNAIL_FAILED exc={type(exc).__name__} "
+                    f"msg={exc!r} path={resolved!s}"
+                )
+    except UnidentifiedImageError as exc:
+        return _fail(
+            "Gambar rusak atau format tidak dapat dikenali.",
+            "IMAGE_CORRUPT",
+            "unidentified",
+            exc,
+        )
+    except (OSError, ValueError) as exc:
+        return _fail(
+            "Gambar rusak atau tidak dapat dibaca.",
+            "IMAGE_DECODE_FAILED",
+            "decode_failed",
+            exc,
+        )
+    except Exception as exc:
+        return _fail(
+            "Gagal membaca informasi gambar. Buka log untuk detail.",
+            "INSPECT_UNEXPECTED",
+            "unexpected",
+            exc,
+        )
+
+    _elog(
+        f"IMAGE_INSPECT_RESPONSE status=ready format={base['format']} "
+        f"size={base['width']}x{base['height']} bytes={size_bytes} path={resolved!s}"
+    )
     return base
-
-
-    def _inspect_image_conversion_files(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._inspect_image_files(request_id, payload)
 
 
 class EngineRuntime:
@@ -389,6 +522,42 @@ class EngineRuntime:
         if not isinstance(paths, list):
             return _error(request_id, "Payload paths harus berupa daftar file.", "INVALID_PAYLOAD")
         results = [_inspect_image(Path(str(path))) for path in paths[:50]]
+        return _ok(request_id, {"files": results})
+
+    def _inspect_image_conversion_files(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+        paths = payload.get("paths")
+        if not isinstance(paths, list):
+            _elog("IMAGE_INSPECT_BATCH_INVALID_PAYLOAD paths_not_list")
+            return _error(request_id, "Payload paths harus berupa daftar file.", "INVALID_PAYLOAD")
+        _elog(f"IMAGE_INSPECT_BATCH_START count={len(paths)}")
+        results: list[dict[str, Any]] = []
+        for raw in paths[:50]:
+            try:
+                results.append(_inspect_image(Path(str(raw))))
+            except Exception as exc:
+                # Pastikan tidak ada satu file pun yang menjatuhkan seluruh batch.
+                _elog(
+                    f"IMAGE_INSPECT_OUTER_FAILED exc={type(exc).__name__} "
+                    f"msg={exc!r} path={raw!r}"
+                )
+                results.append(
+                    {
+                        "path": str(raw),
+                        "file_id": str(uuid.uuid4()),
+                        "filename": Path(str(raw)).name or str(raw),
+                        "size_bytes": 0,
+                        "format": None,
+                        "width": None,
+                        "height": None,
+                        "status": "failed",
+                        "warning": None,
+                        "error": "Gagal membaca informasi gambar. Buka log untuk detail.",
+                        "error_code": "INSPECT_UNEXPECTED",
+                        "thumbnail_data_uri": None,
+                    }
+                )
+        ok_count = sum(1 for r in results if r.get("status") == "ready")
+        _elog(f"IMAGE_INSPECT_BATCH_DONE total={len(results)} ready={ok_count}")
         return _ok(request_id, {"files": results})
 
 
