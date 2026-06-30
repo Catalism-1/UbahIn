@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -8,15 +9,21 @@ from ubahin.core.job import Job
 from ubahin.core.models import AppError, JobOptions, JobStatus, ServiceResult, ToolType, utc_now
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.resource_governor import ResourceGovernor
-from ubahin.core.validation import validate_image_batch, validate_output_dir, validate_pdf_batch, validate_pdf_file
+from ubahin.core.validation import (
+    validate_conversion_input_files,
+    validate_image_batch,
+    validate_output_dir,
+    validate_pdf_batch,
+    validate_pdf_file,
+)
 from ubahin.services import (
     CompressPdfOptions,
     CompressPdfService,
     HistoryService,
     ImageCompressOptions,
     ImageCompressService,
-    ImageConvertOptions,
-    ImageConvertService,
+    ImageConversionOptions,
+    ImageConversionService,
     ImageResizeOptions,
     ImageResizeService,
     ImageToPdfOptions,
@@ -62,7 +69,14 @@ class JobManager:
             except Exception:
                 self.logger.exception("Callback gagal: %s", event_name)
 
-    def create_job(self, tool_type: ToolType | str, input_files: list[str | Path], output_folder: str | Path, **params: object) -> Job:
+    def create_job(
+        self,
+        tool_type: ToolType | str,
+        input_files: list[str | Path],
+        output_folder: str | Path,
+        job_id: str | None = None,
+        **params: object,
+    ) -> Job:
         tool = ToolType(tool_type)
         performance = params.pop("performance_mode", "seimbang")
         options = JobOptions(
@@ -71,7 +85,11 @@ class JobManager:
             create_zip=bool(params.pop("create_zip", False)),
             params=dict(params),
         )
-        job = Job(tool_type=tool, input_files=[Path(path).expanduser().resolve() for path in input_files], options=options)
+        resolved_input_files = [Path(path).expanduser().resolve() for path in input_files]
+        if job_id:
+            job = Job(tool_type=tool, input_files=resolved_input_files, options=options, job_id=job_id)
+        else:
+            job = Job(tool_type=tool, input_files=resolved_input_files, options=options)
         with self._lock:
             self._jobs[job.job_id] = job
         return job
@@ -91,8 +109,10 @@ class JobManager:
             if len(job.input_files) != 1:
                 raise AppError("Fitur ini membutuhkan tepat satu file PDF.")
             validate_pdf_file(job.input_files[0])
-        elif job.tool_type in {ToolType.IMAGE_TO_PDF, ToolType.IMAGE_CONVERT, ToolType.IMAGE_RESIZE, ToolType.IMAGE_COMPRESS}:
+        elif job.tool_type in {ToolType.IMAGE_TO_PDF, ToolType.IMAGE_RESIZE, ToolType.IMAGE_COMPRESS}:
             validate_image_batch(job.input_files)
+        elif job.tool_type == ToolType.IMAGE_CONVERT:
+            validate_conversion_input_files(job.input_files)
         job.status = JobStatus.PENDING
 
     def queue_job(self, job_id: str) -> None:
@@ -161,11 +181,15 @@ class JobManager:
     def clear_history(self) -> None:
         self.history_service.clear()
 
-    def shutdown_gracefully(self, timeout: float = 10.0) -> None:
-        for job in self.get_active_jobs():
+    def shutdown_gracefully(self, timeout: float = 10.0) -> bool:
+        deadline = time.monotonic() + max(0.0, timeout)
+        active_jobs = self.get_active_jobs()
+        for job in active_jobs:
             job.cancellation_token.cancel()
         for thread in list(self._threads.values()):
-            thread.join(timeout)
+            remaining = max(0.0, deadline - time.monotonic())
+            thread.join(remaining)
+        return all(not thread.is_alive() for thread in list(self._threads.values()))
 
     def _run_job(self, job_id: str) -> None:
         job = self._jobs[job_id]
@@ -254,9 +278,29 @@ class JobManager:
                 ImageToPdfOptions(
                     output_dir=job.options.output_dir,
                     output_name=str(params.get("output_name", "hasil_gambar.pdf")),
-                    page_size=str(params.get("page_size", "Original")),
-                    orientation=str(params.get("orientation", "Otomatis")),
-                    margin=str(params.get("margin", "Normal")),
+                    page_size=str(params.get("page_size", "original")),
+                    orientation=str(params.get("orientation", "auto")),
+                    margin=str(params.get("margin", "normal")),
+                    fit_mode=str(params.get("fit_mode", "contain")),
+                    image_quality_preset=str(params.get("image_quality_preset", "balanced")),
+                    jpeg_quality=int(params.get("jpeg_quality", 85)),
+                    optimize_pdf_size=bool(params.get("optimize_pdf_size", True)),
+                ),
+                job.cancellation_token,
+                progress,
+            )
+        elif job.tool_type == ToolType.IMAGE_CONVERT:
+            result = ImageConversionService().convert(
+                job.input_files,
+                ImageConversionOptions(
+                    output_directory=job.options.output_dir,
+                    output_format=str(params.get("output_format", "jpg")),
+                    jpeg_quality=int(params.get("jpeg_quality", 85)),
+                    webp_quality=int(params.get("webp_quality", 85)),
+                    png_compression_level=int(params.get("png_compression_level", 6)),
+                    heic_quality=int(params.get("heic_quality", 80)),
+                    preserve_metadata=bool(params.get("preserve_metadata", False)),
+                    open_output_after_finish=bool(params.get("open_output_after_finish", True))
                 ),
                 job.cancellation_token,
                 progress,
@@ -279,13 +323,6 @@ class JobManager:
             result = CompressPdfService().compress(
                 job.input_files[0],
                 CompressPdfOptions(job.options.output_dir, str(params.get("preset", "Seimbang")), bool(params.get("keep_if_larger", False))),
-                job.cancellation_token,
-                progress,
-            )
-        elif job.tool_type == ToolType.IMAGE_CONVERT:
-            result = ImageConvertService().convert(
-                job.input_files,
-                ImageConvertOptions(job.options.output_dir, str(params.get("target_format", "JPEG")), int(params.get("quality", 90))),
                 job.cancellation_token,
                 progress,
             )

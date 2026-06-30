@@ -1,0 +1,55 @@
+:root {
+  --bg: #f8f7f4;
+  --surface: #ffffff;
+  --surface-2: #fcfbf9;
+  --lavender: #dcd6f7;
+  --sage: #cfe8d5;
+  --blue: #d8e9f7;
+  --peach: #f6d9c7;
+  --pink: #f3d6df;
+  --accent: #7c9a7e;
+  --accent-hover: #68866a;
+  --accent-soft: rgba(124, 154, 126, 0.13);
+  --text: #2d3135;
+  --text-2: #777d84;
+  --text-3: #9aa0a6;
+  --border: #e8e5e1;
+  --border-2: #f0eee9;
+  --success: #78a88a;
+  --warning: #d7a859;
+  --error: #d47b7b;
+  --shadow: 0 1px 2px rgba(45, 49, 53, 0.05), 0 1px 3px rgba(45, 49, 53, 0.04);
+  --shadow-md: 0 4px 16px rgba(45, 49, 53, 0.07);
+  --shadow-lg: 0 12px 40px rgba(45, 49, 53, 0.1);
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+
+  /* Layout variables */
+  --app-sidebar-width: 232px;
+  --app-topbar-height: 82px;
+  --app-page-padding: 28px;
+  --app-page-gap: 22px;
+  --app-hero-padding: 28px 30px;
+}
+
+:root[data-theme="dark"] {
+  --bg: #1e2220;
+  --surface: #282e2b;
+  --surface-2: #222825;
+  --lavender: #37334a;
+  --sage: #2c3a30;
+  --blue: #28343d;
+  --peach: #3c3329;
+  --pink: #3b2f34;
+  --accent: #a8d5ae;
+  --accent-hover: #94c79b;
+  --accent-soft: rgba(168, 213, 174, 0.14);
+  --text: #f5f7f5;
+  --text-2: #9aa39c;
+  --text-3: #79827b;
+  --border: #38403b;
+  --border-2: #313833;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 14px 44px rgba(0, 0, 0, 0.4);
+}

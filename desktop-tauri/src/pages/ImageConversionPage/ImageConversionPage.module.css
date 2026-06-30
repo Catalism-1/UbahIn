@@ -1,0 +1,714 @@
+.page {
+  display: grid;
+  gap: 20px;
+  max-width: 1680px;
+  min-width: 0;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.hero {
+  background:
+    linear-gradient(135deg, rgba(246, 217, 199, 0.7), rgba(216, 233, 247, 0.7)),
+    var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow-md);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: var(--app-hero-padding, 28px 30px);
+}
+
+.hero h2 {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1.15;
+}
+
+.hero p {
+  color: var(--text-2);
+  line-height: 1.6;
+  max-width: 760px;
+}
+
+.layout {
+  align-items: start;
+  display: grid;
+  gap: clamp(16px, 1.5vw, 24px);
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 25vw, 390px);
+  min-width: 0;
+}
+
+.mainColumn {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.sideColumn {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  position: sticky;
+  top: 16px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  min-width: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100vh - var(--app-topbar-height) - var(--app-page-padding) * 2 - 32px);
+  overflow-y: auto;
+  position: relative;
+}
+
+.card::-webkit-scrollbar {
+  width: 6px;
+}
+.card::-webkit-scrollbar-track {
+  background: transparent;
+}
+.card::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.sectionHead {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.sectionHead h3 {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+
+.sectionHead p {
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.actionRow {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.uploadZone {
+  align-items: center;
+  background:
+    linear-gradient(135deg, rgba(246, 217, 199, 0.26), rgba(216, 233, 247, 0.36)),
+    var(--surface-2);
+  border: 1px dashed var(--accent);
+  border-radius: 18px;
+  color: var(--text);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  min-height: 220px;
+  padding: 28px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  width: 100%;
+}
+
+.uploadZone:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background:
+    linear-gradient(135deg, rgba(246, 217, 199, 0.36), rgba(216, 233, 247, 0.46)),
+    var(--surface);
+}
+
+.uploadZone:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.uploadIcon {
+  align-items: center;
+  background: var(--peach);
+  border-radius: 14px;
+  color: var(--text);
+  display: grid;
+  font-size: 13px;
+  font-weight: 900;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.uploadZone strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+
+.uploadZone small {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.uploadCta {
+  background: var(--accent);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  margin-top: 6px;
+  padding: 10px 18px;
+}
+
+.queueEmpty {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+  border-radius: 15px;
+  color: var(--text-2);
+  display: grid;
+  font-size: 13px;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+}
+
+.queueScroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-width: 100%;
+  max-height: 420px;
+}
+
+.queueScroll::-webkit-scrollbar {
+  width: 6px;
+}
+.queueScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.queueScroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.fileList {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fileRow {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: 14px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 54px minmax(0, 1fr) auto auto;
+  min-width: 0;
+  padding: 10px 14px;
+  transition: border-color 0.2s, transform 0.15s;
+}
+
+.fileRow:hover {
+  border-color: var(--accent);
+}
+
+.fileFailed {
+  border-color: rgba(212, 123, 123, 0.42);
+}
+
+.thumbnailContainer {
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+}
+
+.thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnailPlaceholder {
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+
+.fileDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fileName {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+  color: var(--text-2);
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.metaRow span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.formatBadge {
+  background: var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.errorText {
+  color: var(--error);
+  font-size: 11.5px;
+  font-style: normal;
+}
+
+.formatBadgeFailed {
+  background: rgba(212, 123, 123, 0.18) !important;
+  color: var(--error) !important;
+}
+
+.detailToggle {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 2px;
+  padding: 4px 9px;
+}
+
+.detailToggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.errorDetail {
+  background: rgba(212, 123, 123, 0.08);
+  border: 1px solid rgba(212, 123, 123, 0.25);
+  border-radius: 10px;
+  color: var(--text-2);
+  display: grid;
+  font-size: 11.5px;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  word-break: break-all;
+}
+
+.errorDetail strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.progressTrack {
+  background: var(--border-2);
+  border-radius: 999px;
+  height: 6px;
+  margin-top: 4px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.progressFill {
+  background: var(--accent);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  transition: width 0.18s ease;
+}
+
+.progressFill.failed {
+  background: var(--error);
+}
+
+.progressFill.done {
+  background: var(--success);
+}
+
+.fileStatus {
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+.statusReady {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+}
+
+.statusProcessing {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.statusCompleted {
+  background: rgba(120, 168, 138, 0.18);
+  color: var(--success);
+}
+
+.statusFailed {
+  background: rgba(212, 123, 123, 0.15);
+  color: var(--error);
+}
+
+.removeButton {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 900;
+  height: 32px;
+  width: 32px;
+  display: grid;
+  place-items: center;
+}
+
+.removeButton:hover:not(:disabled) {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.statsRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--text-2);
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.statsRow strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Settings panel */
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formLabel {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.helpText {
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+.inputGroup {
+  display: flex;
+  gap: 8px;
+}
+
+.inputField {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  padding: 9px 12px;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+.inputField:focus {
+  border-color: var(--accent);
+}
+
+.inputField:disabled {
+  opacity: 0.7;
+}
+
+.selectField {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  padding: 9px 12px;
+  width: 100%;
+  transition: border-color 0.2s;
+  cursor: pointer;
+}
+
+.selectField:focus {
+  border-color: var(--accent);
+}
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.sliderValue {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 3ch;
+  text-align: right;
+}
+
+.toggleRow {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: 13px;
+  color: var(--text);
+  display: flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 10px;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.toggleRow input[type='checkbox'] {
+  accent-color: var(--accent);
+  height: 16px;
+  width: 16px;
+}
+
+.actionArea {
+  position: sticky;
+  bottom: -20px;
+  margin-left: -20px;
+  margin-right: -20px;
+  margin-top: auto;
+  padding: 16px 20px 20px;
+  background: var(--surface);
+  z-index: 10;
+  border-top: 1px solid var(--border-2);
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.startButton {
+  background: var(--accent);
+  border-radius: 14px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  min-height: 48px;
+  width: 100%;
+}
+
+.startButton:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.startButton:disabled {
+  background: var(--border);
+  color: var(--text-2);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.cancelButton {
+  background: var(--error);
+  border-radius: 14px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  min-height: 48px;
+  width: 100%;
+}
+
+.cancelButton:hover {
+  filter: brightness(0.95);
+}
+
+.disabledHint {
+  color: var(--text-2);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+/* Modal styling */
+.modalRoot {
+  align-items: center;
+  background: rgba(30, 34, 32, 0.42);
+  display: grid;
+  inset: 0;
+  justify-items: center;
+  padding: 24px;
+  position: fixed;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 460px;
+  padding: 26px;
+  width: 100%;
+}
+
+.modalHead {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.modalIcon {
+  align-items: center;
+  background: var(--accent-soft);
+  border-radius: 14px;
+  color: var(--accent);
+  display: grid;
+  font-size: 22px;
+  font-weight: 900;
+  height: 46px;
+  justify-content: center;
+  width: 46px;
+}
+
+.modalTitle {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 20px;
+  margin: 0;
+}
+
+.modalSubtitle {
+  color: var(--text-2);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1240px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .sideColumn {
+    position: static;
+  }
+
+  .card {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .actionArea {
+    position: static;
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    padding: 16px 0 0;
+    border-top: none;
+    border-radius: 0;
+  }
+}
+
+@media (max-height: 760px) {
+  .hero {
+    padding: var(--app-hero-padding, 22px 24px);
+  }
+  .hero h2 {
+    font-size: 25px;
+  }
+  .uploadZone {
+    min-height: 180px;
+    padding: 22px;
+  }
+}
+
+@media (max-height: 700px) {
+  .hero {
+    padding: var(--app-hero-padding, 14px 18px);
+  }
+  .hero h2 {
+    font-size: 21px;
+  }
+  .hero p {
+    font-size: 13px;
+  }
+  .uploadZone {
+    min-height: 150px;
+    padding: 16px;
+  }
+  .uploadZone strong {
+    font-size: 16px;
+  }
+}

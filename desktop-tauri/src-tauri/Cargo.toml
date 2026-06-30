@@ -1,6 +1,6 @@
 [package]
 name = "ubahin_desktop"
-version = "0.1.1"
+version = "0.1.2"
 description = "Ubahin desktop shell"
 authors = ["Catalism-1"]
 edition = "2021"
@@ -14,4 +14,6 @@ serde_json = "1"
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-window-state = "2"
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1", features = ["sync", "time"] }
+uuid = { version = "1", features = ["v4"] }
+rfd = "0.15"

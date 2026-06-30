@@ -16,3 +16,7 @@ export async function logWindowEvent(message: string): Promise<void> {
 export async function cancelEngineJob(jobId: string | null): Promise<void> {
   await invoke('cancel_engine_job', { jobId });
 }
+
+export async function cancelActiveJobAndClose(jobId: string | null): Promise<void> {
+  await invoke('cancel_active_job_and_close', { jobId });
+}
