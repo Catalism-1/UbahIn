@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import platform
 import sys
 import threading
@@ -13,6 +14,37 @@ from typing import Any
 
 
 ENGINE_VERSION = "0.1.2"
+
+
+# ---------- engine logger ---------------------------------------------------
+
+_engine_file_handler: logging.FileHandler | None = None
+_engine_logger: logging.Logger | None = None
+
+
+def _setup_engine_logger() -> logging.Logger:
+    global _engine_file_handler, _engine_logger
+    if _engine_logger is not None:
+        return _engine_logger
+    appdata = Path(os.environ.get("LOCALAPPDATA", "") or ".") / "Ubahin" / "logs"
+    appdata.mkdir(parents=True, exist_ok=True)
+    log_path = appdata / "engine.log"
+    handler = logging.FileHandler(log_path, encoding="utf-8", delay=False)
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger = logging.getLogger("ubahin.engine_main")
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    _engine_file_handler = handler
+    _engine_logger = logger
+    return logger
+
+
+def _elog(message: str) -> None:
+    """Write structured log to engine.log."""
+    try:
+        _setup_engine_logger().info(message)
+    except Exception:
+        pass
 
 
 def _add_legacy_src_to_path() -> None:
@@ -358,6 +390,12 @@ class EngineRuntime:
         image_quality_preset = str(payload.get("image_quality_preset") or "balanced")
         jpeg_quality = int(payload.get("jpeg_quality") or 85)
         optimize_pdf_size = bool(payload.get("optimize_pdf_size", True))
+        output_filename = str(payload.get("output_filename") or "hasil_gambar.pdf")
+
+        _elog(
+            f"IMAGE_TO_PDF_START job_id={job_id} files={len(paths)} "
+            f"output_dir={output_directory!r} output_filename={output_filename!r}"
+        )
 
         try:
             job = self._manager.create_job(
@@ -365,7 +403,7 @@ class EngineRuntime:
                 paths,
                 output_directory,
                 job_id=job_id,
-                output_name=str(payload.get("output_filename") or "hasil_gambar.pdf"),
+                output_name=output_filename,
                 page_size=str(payload.get("page_size") or "original"),
                 orientation=str(payload.get("orientation") or "auto"),
                 margin=str(payload.get("margin") or "normal"),
@@ -383,9 +421,12 @@ class EngineRuntime:
                 "jpeg_quality": jpeg_quality,
             }
             self._manager.start_job(job.job_id)
+            _elog(f"IMAGE_TO_PDF_JOB_STARTED job_id={job.job_id} status={job.status.value}")
         except AppError as exc:
+            _elog(f"IMAGE_TO_PDF_START_FAILED job_id={job_id} error={exc}")
             return _error(request_id, str(exc), "JOB_START_FAILED")
         except Exception as exc:
+            _elog(f"IMAGE_TO_PDF_START_FAILED job_id={job_id} error={exc}")
             print(traceback.format_exc(), file=sys.stderr, flush=True)
             return _error(request_id, f"Tidak dapat memulai konversi: {exc}", "JOB_START_FAILED")
 
@@ -644,12 +685,13 @@ class EngineRuntime:
 
         def result_payload(job: Job) -> dict[str, Any]:
             result = job.result
-            # Only include output paths that actually exist on disk
+            # Only include output paths that actually exist on disk and are non-empty
             output_paths = [
                 path for path in (result.output_paths if result else [])
                 if path.exists() and path.stat().st_size > 0
             ]
             jpg_outputs = [path for path in output_paths if path.suffix.lower() in {".jpg", ".jpeg"}]
+            pdf_outputs = [path for path in output_paths if path.suffix.lower() == ".pdf"]
             failed_files = []
             if result:
                 failed_files = [
@@ -662,8 +704,20 @@ class EngineRuntime:
                     if item.status == "failed"
                 ]
             meta = self._job_meta.get(job.job_id, {})
+            tool_type = job.tool_type.value if hasattr(job.tool_type, "value") else str(job.tool_type)
+
+            # For IMAGE_TO_PDF: provide explicit output_pdf_path and output_filename
+            output_pdf_path = ""
+            output_filename = ""
+            output_size_bytes = sum(p.stat().st_size for p in output_paths if p.exists())
+            if pdf_outputs:
+                output_pdf_path = _json_safe_path(pdf_outputs[0])
+                output_filename = pdf_outputs[0].name
+                output_size_bytes = pdf_outputs[0].stat().st_size
+
             return {
                 "job_id": job.job_id,
+                "tool_type": tool_type,
                 "status": job.status.value,
                 "successful_files": result.successful_files if result else 0,
                 "failed_files": result.failed_files if result else len(job.input_files),
@@ -672,7 +726,9 @@ class EngineRuntime:
                 "processed_files": result.processed_files if result else 0,
                 "total_outputs": len(output_paths),
                 "total_jpg": len(jpg_outputs),
-                "output_size_bytes": sum(p.stat().st_size for p in output_paths if p.exists()),
+                "output_size_bytes": output_size_bytes,
+                "output_pdf_path": output_pdf_path,
+                "output_filename": output_filename,
                 "output_directory": str(job.options.output_dir),
                 "output_paths": [_json_safe_path(path) for path in output_paths],
                 "duration_seconds": job.duration,
@@ -684,8 +740,37 @@ class EngineRuntime:
             }
 
         def on_completed(job: Job) -> None:
+            tool_type = job.tool_type.value if hasattr(job.tool_type, "value") else str(job.tool_type)
+            _elog(f"ENGINE_JOB_COMPLETED_HANDLER job_id={job.job_id} tool_type={tool_type}")
+
             emit_file_events(job)
-            self.write_message(_event("job_completed", job.job_id, result_payload(job)))
+            payload = result_payload(job)
+
+            # Safety gate for IMAGE_TO_PDF: if no valid PDF output, escalate to job_failed
+            if tool_type == "image_to_pdf":
+                output_pdf_path = payload.get("output_pdf_path", "")
+                output_size = payload.get("output_size_bytes", 0)
+                if not output_pdf_path or not output_size:
+                    error_msg = "PDF belum berhasil dibuat. Silakan buka log untuk melihat detail."
+                    _elog(
+                        f"ENGINE_EVENT_SENT job_failed (safety gate) job_id={job.job_id} "
+                        f"output_pdf_path={output_pdf_path!r} output_size={output_size}"
+                    )
+                    # Inject error and emit job_failed
+                    payload["status"] = "failed"
+                    payload["errors"] = [error_msg] + list(payload.get("errors") or [])
+                    self.write_message(_event("job_failed", job.job_id, payload))
+                    return
+
+                _elog(
+                    f"ENGINE_EVENT_SENT job_completed job_id={job.job_id} "
+                    f"output_pdf_path={output_pdf_path!r} size={output_size}"
+                )
+            else:
+                _elog(f"ENGINE_EVENT_SENT job_completed job_id={job.job_id} tool_type={tool_type}")
+
+            self.write_message(_event("job_completed", job.job_id, payload))
+
             meta = self._job_meta.get(job.job_id, {})
             if meta.get("open_after_finish"):
                 try:
@@ -694,10 +779,14 @@ class EngineRuntime:
                     print(traceback.format_exc(), file=sys.stderr, flush=True)
 
         def on_failed(job: Job) -> None:
+            tool_type = job.tool_type.value if hasattr(job.tool_type, "value") else str(job.tool_type)
+            _elog(f"ENGINE_EVENT_SENT job_failed job_id={job.job_id} tool_type={tool_type}")
             emit_file_events(job)
             self.write_message(_event("job_failed", job.job_id, result_payload(job)))
 
         def on_cancelled(job: Job) -> None:
+            tool_type = job.tool_type.value if hasattr(job.tool_type, "value") else str(job.tool_type)
+            _elog(f"ENGINE_EVENT_SENT job_cancelled job_id={job.job_id} tool_type={tool_type}")
             emit_file_events(job)
             self.write_message(_event("job_cancelled", job.job_id, result_payload(job)))
 
@@ -709,13 +798,15 @@ class EngineRuntime:
 
 
 def run_stdio() -> int:
-    import os
-    appdata = Path(os.environ.get("LOCALAPPDATA", "")) / "Ubahin" / "logs"
+    appdata = Path(os.environ.get("LOCALAPPDATA", "") or ".") / "Ubahin" / "logs"
     appdata.mkdir(parents=True, exist_ok=True)
     try:
         sys.stderr = open(appdata / "engine.stderr.log", "a", encoding="utf-8")
     except Exception:
         pass
+    # Initialize engine logger now that stderr is redirected
+    _setup_engine_logger()
+    _elog("ENGINE_STDIO_STARTED")
 
     runtime = EngineRuntime()
     for raw_line in sys.stdin:
