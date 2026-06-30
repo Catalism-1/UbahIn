@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from pypdf import PdfReader
+
 import pytest
 from PIL import Image
+from pypdf import PdfReader
 
-from ubahin.services import ImageToPdfOptions, ImageToPdfService
 from ubahin.core.cancellation import CancellationToken
-from ubahin.core.models import JobStatus
+from ubahin.services import ImageToPdfOptions, ImageToPdfService
 
 
 def test_image_to_pdf_basic(sample_images: list[Path], tmp_path: Path) -> None:

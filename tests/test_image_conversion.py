@@ -1,13 +1,11 @@
-import os
-import shutil
-import uuid
 from pathlib import Path
-from PIL import Image
 
 import pytest
+from PIL import Image
+
 from ubahin.core.job_manager import JobManager
 from ubahin.core.models import ToolType
-from ubahin.services.image_conversion_service import ImageConversionService, ImageConversionOptions
+from ubahin.services.image_conversion_service import ImageConversionOptions, ImageConversionService
 
 # Pillow-HEIF is mocked or available in the environment depending on setup
 # We'll create basic JPG, PNG to test universal conversion logic

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
@@ -11,7 +10,7 @@ from ubahin.core.cancellation import CancellationToken
 from ubahin.core.models import FileResult, ServiceResult
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.validation import validate_image_batch, validate_output_dir
-from ubahin.utils import atomic_temp_path, finalize_atomic_write, get_logger, remove_temp_file, unique_file
+from ubahin.utils import finalize_atomic_write, get_logger, remove_temp_file, unique_file
 from ubahin.utils.image_utils import normalize_rgb, open_image
 
 logger = get_logger("ubahin.image_to_pdf")
