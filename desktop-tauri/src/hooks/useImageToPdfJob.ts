@@ -57,6 +57,14 @@ export function useImageToPdfJob(isEngineReady: boolean, defaults: ImageToPdfOpt
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
+  // --- Fix stale closure: keep a ref that always mirrors the latest activeJobId ---
+  // Using a ref means event handlers don't need to be recreated every time the
+  // job ID changes — eliminating the race window where events could be dropped.
+  const activeJobIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    activeJobIdRef.current = activeJobId;
+  });
+
   const isBusy = status === 'inspecting' || status === 'starting' || status === 'processing' || status === 'cancelling';
   const validFiles = useMemo(() => files.filter((file) => file.status !== 'failed'), [files]);
   const validFileCount = validFiles.length;
@@ -181,6 +189,9 @@ export function useImageToPdfJob(isEngineReady: boolean, defaults: ImageToPdfOpt
     if (!canStart) return;
 
     const jobId = createJobId();
+    // Update ref immediately so listeners already see the new job ID
+    // before the state re-render cycle completes.
+    activeJobIdRef.current = jobId;
     setActiveJobId(jobId);
     setProgress(null);
     setResult(null);
@@ -191,6 +202,7 @@ export function useImageToPdfJob(isEngineReady: boolean, defaults: ImageToPdfOpt
       await startImageToPdf(jobId, validFiles, options);
       setStatus('processing');
     } catch (error) {
+      activeJobIdRef.current = null;
       setActiveJobId(null);
       setStatus('ready');
       addToast('Konversi gagal dimulai.', 'error', error instanceof Error ? error.message : 'Silakan coba lagi.');
@@ -232,76 +244,86 @@ export function useImageToPdfJob(isEngineReady: boolean, defaults: ImageToPdfOpt
     setProgress(null);
     setResult(null);
     setShowResult(false);
+    activeJobIdRef.current = null;
     setActiveJobId(null);
     setStatus('idle');
   }, []);
 
+  // ---------------------------------------------------------------------------
+  // Event handlers — all read from activeJobIdRef.current, not from closure.
+  // This is the key fix: handlers are created ONCE and never recreated
+  // when activeJobId changes, so there is no subscription tear-down race.
+  // ---------------------------------------------------------------------------
+
   const handleProgressEvent = useCallback((event: ImageToPdfProgress) => {
-    if (event.job_id && activeJobId && event.job_id !== activeJobId) return;
+    const currentJobId = activeJobIdRef.current;
+    if (event.job_id && currentJobId && event.job_id !== currentJobId) return;
     setStatus('processing');
     setProgress(event);
     setFiles((current) =>
       current.map((file) => (file.filename === event.current_file && file.status === 'ready' ? { ...file, status: 'processing' } : file)),
     );
-  }, [activeJobId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — reads from ref
 
   const handleFileCompletedEvent = useCallback((event: { file_id?: string; path?: string; filename: string; error?: string }) => {
-    if (!activeJobId) return;
+    if (!activeJobIdRef.current) return;
     setFiles((current) =>
       current.map((file) => {
         const sameFileId = Boolean(event.file_id) && file.fileId === event.file_id;
         const sameFilePath = Boolean(event.path) && samePath(file.path, event.path!);
         if (!sameFileId && !sameFilePath) return file;
-        return {
-          ...file,
-          status: 'completed',
-        };
+        return { ...file, status: 'completed' };
       })
     );
-  }, [activeJobId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — reads from ref
 
   const handleWarningEvent = useCallback((event: { file_id?: string; path?: string; filename: string; error?: string; message: string }) => {
-    if (!activeJobId) return;
+    if (!activeJobIdRef.current) return;
     setFiles((current) =>
       current.map((file) => {
         const sameFileId = Boolean(event.file_id) && file.fileId === event.file_id;
         const sameFilePath = Boolean(event.path) && samePath(file.path, event.path!);
         if (!sameFileId && !sameFilePath) return file;
-        return {
-          ...file,
-          status: 'failed',
-          error: event.error || event.message,
-        };
+        return { ...file, status: 'failed', error: event.error || event.message };
       })
     );
     addToast('Satu file gagal diproses.', 'warning', event.message);
-  }, [activeJobId, addToast]);
+  }, [addToast]);
 
   const finishJob = useCallback((event: ImageToPdfResult, nextStatus: JobStatus) => {
-    if (event.job_id && activeJobId && event.job_id !== activeJobId) return;
+    // Use ref to check job ID — avoids stale closure issue
+    const currentJobId = activeJobIdRef.current;
+    if (event.job_id && currentJobId && event.job_id !== currentJobId) return;
+
+    console.log('[REACT_EVENT_RECEIVED] job_id=', event.job_id, 'nextStatus=', nextStatus, 'output_pdf_path=', event.output_pdf_path);
+
     setResult(event);
     setShowResult(true);
     setStatus(nextStatus);
+    activeJobIdRef.current = null;
     setActiveJobId(null);
 
     if (nextStatus === 'cancelled') {
       setFiles((current) => current.map((file) => (file.status === 'processing' ? { ...file, status: 'cancelled' } : file)));
       addToast('Konversi dibatalkan.', 'warning');
+    } else if (nextStatus === 'failed') {
+      addToast('PDF gagal dibuat.', 'error', event.errors[0] ?? 'Gagal membuat file PDF. Silakan buka log.');
     } else if (event.failed_files > 0 && event.successful_files > 0) {
       addToast('Selesai dengan beberapa file gagal.', 'warning', 'Beberapa gambar tidak dapat dimasukkan ke PDF.');
-    } else if (nextStatus === 'failed') {
-      addToast('Konversi gagal.', 'error', event.errors[0] ?? 'Gagal membuat file PDF.');
     } else {
       addToast('PDF berhasil dibuat!', 'success', `${event.successful_files} gambar digabungkan.`);
     }
-  }, [activeJobId, addToast]);
+  }, [addToast]); // addToast is stable, activeJobId read via ref
 
-  useTauriEvent<ImageToPdfProgress>('engine://progress', handleProgressEvent, Boolean(activeJobId));
-  useTauriEvent<any>('engine://file-completed', handleFileCompletedEvent, Boolean(activeJobId));
-  useTauriEvent<any>('engine://warning', handleWarningEvent, Boolean(activeJobId));
-  useTauriEvent<ImageToPdfResult>('engine://job-completed', (event) => finishJob(event, 'completed'), Boolean(activeJobId));
-  useTauriEvent<ImageToPdfResult>('engine://job-failed', (event) => finishJob(event, 'failed'), Boolean(activeJobId));
-  useTauriEvent<ImageToPdfResult>('engine://job-cancelled', (event) => finishJob(event, 'cancelled'), Boolean(activeJobId));
+  // Listeners always enabled — handlers are stable (no re-subscription race)
+  useTauriEvent<ImageToPdfProgress>('engine://progress', handleProgressEvent, true);
+  useTauriEvent<any>('engine://file-completed', handleFileCompletedEvent, true);
+  useTauriEvent<any>('engine://warning', handleWarningEvent, true);
+  useTauriEvent<ImageToPdfResult>('engine://job-completed', (event) => finishJob(event, 'completed'), true);
+  useTauriEvent<ImageToPdfResult>('engine://job-failed', (event) => finishJob(event, 'failed'), true);
+  useTauriEvent<ImageToPdfResult>('engine://job-cancelled', (event) => finishJob(event, 'cancelled'), true);
 
   return {
     files,

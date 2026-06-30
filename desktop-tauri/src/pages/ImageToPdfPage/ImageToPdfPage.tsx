@@ -433,7 +433,14 @@ export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: Im
       />
 
       {job.showResult && job.result ? (() => {
-        const isSuccess = job.result.status !== 'failed' && job.result.output_paths.length > 0 && (job.result.output_size_bytes ?? 0) > 0;
+        // isSuccess requires a verified output_pdf_path (non-empty) OR a non-empty output_paths
+        // AND the status must not be 'failed'.
+        const pdfPath = job.result.output_pdf_path || job.result.output_paths[0] || '';
+        const isSuccess =
+          job.result.status !== 'failed' &&
+          job.result.status !== 'cancelled' &&
+          Boolean(pdfPath) &&
+          (job.result.output_size_bytes ?? 0) > 0;
         
         return (
           <div className="app-modal-root" role="presentation" onMouseDown={() => job.setShowResult(false)}>
@@ -510,7 +517,7 @@ export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: Im
 
                     <div>
                       <span className={styles.formLabel}>Lokasi Hasil</span>
-                      <span className={styles.resultPath}>{job.result.output_paths[0]}</span>
+                      <span className={styles.resultPath}>{job.result.output_pdf_path || job.result.output_paths[0] || '-'}</span>
                     </div>
                   </>
                 ) : (

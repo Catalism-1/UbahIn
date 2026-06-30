@@ -59,6 +59,7 @@ export interface ImageToPdfProgress {
 
 export interface ImageToPdfResult {
   job_id: string;
+  tool_type?: string;
   status: string;
   successful_files: number;
   failed_files: number;
@@ -67,6 +68,8 @@ export interface ImageToPdfResult {
   processed_files: number;
   total_outputs: number;
   output_size_bytes?: number;
+  output_pdf_path?: string;
+  output_filename?: string;
   output_directory: string;
   output_paths: string[];
   duration_seconds: number;
