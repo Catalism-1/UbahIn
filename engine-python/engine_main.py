@@ -166,7 +166,10 @@ def _error(request_id: str | None, message: str, code: str = "ENGINE_ERROR") -> 
 
 
 def _event(name: str, job_id: str, data: dict[str, Any]) -> dict[str, Any]:
-    return {"type": "event", "event": name, "job_id": job_id, "data": data}
+    evt = {"type": "event", "event": name, "job_id": job_id, "data": data}
+    if "tool_type" in data:
+        evt["tool_type"] = data["tool_type"]
+    return evt
 
 
 def _json_safe_path(path: Path) -> str:
@@ -715,7 +718,7 @@ class EngineRuntime:
                 output_filename = pdf_outputs[0].name
                 output_size_bytes = pdf_outputs[0].stat().st_size
 
-            return {
+            payload = {
                 "job_id": job.job_id,
                 "tool_type": tool_type,
                 "status": job.status.value,
@@ -738,6 +741,11 @@ class EngineRuntime:
                 "image_quality_preset": meta.get("image_quality_preset", ""),
                 "jpeg_quality": meta.get("jpeg_quality", 0),
             }
+            if tool_type == "image_to_pdf":
+                payload["total_images"] = payload["total_input_files"]
+                payload["successful_images"] = payload["successful_files"]
+                payload["failed_images"] = payload["failed_files"]
+            return payload
 
         def on_completed(job: Job) -> None:
             tool_type = job.tool_type.value if hasattr(job.tool_type, "value") else str(job.tool_type)
@@ -752,22 +760,16 @@ class EngineRuntime:
                 output_size = payload.get("output_size_bytes", 0)
                 if not output_pdf_path or not output_size:
                     error_msg = "PDF belum berhasil dibuat. Silakan buka log untuk melihat detail."
-                    _elog(
-                        f"ENGINE_EVENT_SENT job_failed (safety gate) job_id={job.job_id} "
-                        f"output_pdf_path={output_pdf_path!r} output_size={output_size}"
-                    )
+                    _elog("ENGINE_EVENT_SENT job_failed")
                     # Inject error and emit job_failed
                     payload["status"] = "failed"
                     payload["errors"] = [error_msg] + list(payload.get("errors") or [])
                     self.write_message(_event("job_failed", job.job_id, payload))
                     return
 
-                _elog(
-                    f"ENGINE_EVENT_SENT job_completed job_id={job.job_id} "
-                    f"output_pdf_path={output_pdf_path!r} size={output_size}"
-                )
+                _elog("ENGINE_EVENT_SENT job_completed")
             else:
-                _elog(f"ENGINE_EVENT_SENT job_completed job_id={job.job_id} tool_type={tool_type}")
+                _elog("ENGINE_EVENT_SENT job_completed")
 
             self.write_message(_event("job_completed", job.job_id, payload))
 
@@ -780,13 +782,13 @@ class EngineRuntime:
 
         def on_failed(job: Job) -> None:
             tool_type = job.tool_type.value if hasattr(job.tool_type, "value") else str(job.tool_type)
-            _elog(f"ENGINE_EVENT_SENT job_failed job_id={job.job_id} tool_type={tool_type}")
+            _elog("ENGINE_EVENT_SENT job_failed")
             emit_file_events(job)
             self.write_message(_event("job_failed", job.job_id, result_payload(job)))
 
         def on_cancelled(job: Job) -> None:
             tool_type = job.tool_type.value if hasattr(job.tool_type, "value") else str(job.tool_type)
-            _elog(f"ENGINE_EVENT_SENT job_cancelled job_id={job.job_id} tool_type={tool_type}")
+            _elog("ENGINE_EVENT_SENT job_cancelled")
             emit_file_events(job)
             self.write_message(_event("job_cancelled", job.job_id, result_payload(job)))
 

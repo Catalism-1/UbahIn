@@ -141,6 +141,11 @@ class ImageToPdfService:
 
         cancellation.raise_if_cancelled()
         pages: list[Image.Image] = []
+        
+        # Determine temporary path
+        temp_dir = options.output_dir / ".ubahin-temp"
+        temp_path = temp_dir / f"{output_path.name}.tmp.pdf"
+        
         try:
             for idx, image_path in enumerate(valid_files, start=1):
                 cancellation.raise_if_cancelled()
@@ -164,41 +169,79 @@ class ImageToPdfService:
 
             cancellation.raise_if_cancelled()
 
-            # ---- write PDF via atomic temp file ----
-            first, rest = pages[0], pages[1:]
-            temp_path = atomic_temp_path(output_path)
-            try:
-                first.save(
-                    temp_path,
-                    "PDF",
-                    save_all=True,
-                    append_images=rest,
-                    resolution=100,
-                    quality=jpeg_quality,
-                    optimize=optimize,
-                )
-                finalize_atomic_write(temp_path, output_path)
-            except Exception:
-                remove_temp_file(temp_path)
-                raise
+            # Ensure temp directory exists
+            temp_dir.mkdir(parents=True, exist_ok=True)
 
-            # ---- validate output PDF ----
+            # 1. Buat PDF di file temporary.
+            logger.info("TEMP_OUTPUT_CREATED path=%s", temp_path)
+            first, rest = pages[0], pages[1:]
+            first.save(
+                temp_path,
+                "PDF",
+                save_all=True,
+                append_images=rest,
+                resolution=100,
+                quality=jpeg_quality,
+                optimize=optimize,
+            )
+        finally:
+            # 2. Tutup seluruh object file/image.
+            for page in pages:
+                try:
+                    page.close()
+                except Exception:
+                    pass
+
+        # At this point, PIL images are closed.
+        try:
+            cancellation.raise_if_cancelled()
+
+            # 3. Verifikasi PDF temporary.
+            validation_error = self._validate_output(temp_path, len(valid_files))
+            if validation_error:
+                logger.error("TEMP_PDF_VALIDATION_FAILED path=%s, error=%s", temp_path, validation_error)
+                remove_temp_file(temp_path)
+                return ServiceResult(
+                    output_paths=[],
+                    file_results=file_results,
+                    errors=[validation_error] + errors,
+                    message="PDF belum berhasil dibuat. Silakan buka log untuk melihat detail.",
+                    total_input_files=len(image_files),
+                    processed_files=len(image_files),
+                    completed_files=0,
+                )
+            
+            logger.info("TEMP_PDF_VALIDATED pages=%d", len(valid_files))
+
+            # 4. Rename atomic ke file final.
+            finalize_atomic_write(temp_path, output_path)
+            logger.info("FINAL_OUTPUT_RENAMED path=%s", output_path)
+
+            # Cleanup .ubahin-temp directory if empty
+            try:
+                if temp_dir.exists() and not any(temp_dir.iterdir()):
+                    temp_dir.rmdir()
+            except Exception:
+                pass
+
+            # 5. Verifikasi file final.
             validation_error = self._validate_output(output_path, len(valid_files))
             if validation_error:
-                # PDF is invalid – remove it and report failure
-                logger.error("Output PDF gagal validasi: %s", validation_error)
+                logger.error("FINAL_PDF_VALIDATION_FAILED path=%s, error=%s", output_path, validation_error)
                 remove_temp_file(output_path)
                 return ServiceResult(
                     output_paths=[],
                     file_results=file_results,
                     errors=[validation_error] + errors,
-                    message="PDF belum berhasil dibuat. Silakan cek folder hasil atau buka log.",
+                    message="PDF belum berhasil dibuat. Silakan buka log untuk melihat detail.",
                     total_input_files=len(image_files),
                     processed_files=len(image_files),
                     completed_files=0,
                 )
 
             output_size = output_path.stat().st_size
+            logger.info("FINAL_OUTPUT_VERIFIED size=%d", output_size)
+
             for fr in file_results:
                 if fr.status == "completed":
                     fr.output_paths = [output_path]
@@ -213,12 +256,31 @@ class ImageToPdfService:
                 processed_files=len(image_files),
                 completed_files=len(valid_files),
             )
-        finally:
-            for page in pages:
-                try:
-                    page.close()
-                except Exception:
-                    pass
+        except Exception as exc:
+            import traceback
+            logger.error("Error processing PDF: %s\n%s", exc, traceback.format_exc())
+            remove_temp_file(temp_path)
+            remove_temp_file(output_path)
+            # Cleanup .ubahin-temp directory if empty
+            try:
+                if temp_dir.exists() and not any(temp_dir.iterdir()):
+                    temp_dir.rmdir()
+            except Exception:
+                pass
+            
+            # Re-raise InterruptedError so test_image_to_pdf_cancellation works
+            if isinstance(exc, InterruptedError):
+                raise
+                
+            return ServiceResult(
+                output_paths=[],
+                file_results=file_results,
+                errors=[str(exc)] + errors,
+                message="PDF belum berhasil dibuat. Silakan buka log untuk melihat detail.",
+                total_input_files=len(image_files),
+                processed_files=len(image_files),
+                completed_files=0,
+            )
 
     @staticmethod
     def _validate_output(output_path: Path, expected_pages: int) -> str | None:
