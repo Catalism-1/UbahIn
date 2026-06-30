@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import styles from './ImageConversionPage.module.css';
 import { useImageConversionJob } from '../../hooks/useImageConversionJob';
 import { useAppSettings } from '../../hooks/useAppSettings';
@@ -8,11 +8,15 @@ import { openOutputDirectory, pickOutputDirectory } from '../../services/pdfToJp
 import { openLogFolder } from '../../services/engine';
 
 function formatBytes(bytes: number) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unit = 0;
+    while (size >= 1024 && unit < units.length - 1) {
+        size /= 1024;
+        unit += 1;
+    }
+    return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
 export function ImageConversionPage() {
@@ -23,7 +27,6 @@ export function ImageConversionPage() {
         isConverting,
         isInspecting,
         showSuccessDialog,
-        setShowSuccessDialog,
         addFiles,
         removeFile,
         clearQueue,
@@ -82,77 +85,93 @@ export function ImageConversionPage() {
         }
     };
 
+    const isBusy = isConverting || isInspecting;
+    const queueFull = queue.length >= 50;
+    const canStart = queue.length > 0 && Boolean(options.outputDirectory) && !isBusy;
+
+    const disabledReason = useMemo(() => {
+        if (isConverting) return null;
+        if (queue.length === 0 && !options.outputDirectory) {
+            return 'Pilih gambar dan folder hasil untuk memulai.';
+        }
+        if (queue.length === 0) return 'Tambahkan minimal satu gambar ke antrean.';
+        if (!options.outputDirectory) return 'Pilih folder hasil terlebih dahulu.';
+        return null;
+    }, [isConverting, queue.length, options.outputDirectory]);
+
     const renderFormatSettings = () => {
         switch (options.outputFormat) {
             case 'jpg':
                 return (
                     <div className={styles.formGroup}>
-                        <div className={styles.label}>Kualitas JPEG/JPG</div>
-                        <div className={styles.sliderContainer}>
+                        <label className={styles.formLabel}>Kualitas JPEG/JPG</label>
+                        <div className={styles.sliderRow}>
                             <input
                                 type="range"
                                 className={styles.slider}
-                                min="50"
-                                max="100"
+                                min={50}
+                                max={100}
                                 value={options.jpegQuality}
-                                onChange={(e) => setOptions({ ...options, jpegQuality: parseInt(e.target.value) })}
+                                onChange={(e) => setOptions({ ...options, jpegQuality: parseInt(e.target.value, 10) })}
                                 disabled={isConverting}
                             />
                             <span className={styles.sliderValue}>{options.jpegQuality}</span>
                         </div>
-                        <div className={styles.helpText}>Kualitas lebih rendah ukuran file lebih kecil.</div>
+                        <span className={styles.helpText}>Kualitas lebih rendah menghasilkan ukuran file lebih kecil.</span>
                     </div>
                 );
             case 'webp':
                 return (
                     <div className={styles.formGroup}>
-                        <div className={styles.label}>Kualitas WEBP</div>
-                        <div className={styles.sliderContainer}>
+                        <label className={styles.formLabel}>Kualitas WEBP</label>
+                        <div className={styles.sliderRow}>
                             <input
                                 type="range"
                                 className={styles.slider}
-                                min="50"
-                                max="100"
+                                min={50}
+                                max={100}
                                 value={options.webpQuality}
-                                onChange={(e) => setOptions({ ...options, webpQuality: parseInt(e.target.value) })}
+                                onChange={(e) => setOptions({ ...options, webpQuality: parseInt(e.target.value, 10) })}
                                 disabled={isConverting}
                             />
                             <span className={styles.sliderValue}>{options.webpQuality}</span>
                         </div>
+                        <span className={styles.helpText}>WEBP biasanya lebih efisien dari JPG pada kualitas yang sama.</span>
                     </div>
                 );
             case 'png':
                 return (
                     <div className={styles.formGroup}>
-                        <div className={styles.label}>Kompresi PNG</div>
+                        <label className={styles.formLabel}>Kompresi PNG</label>
                         <select
-                            className={styles.select}
+                            className={styles.selectField}
                             value={options.pngCompressionLevel}
-                            onChange={(e) => setOptions({ ...options, pngCompressionLevel: parseInt(e.target.value) })}
+                            onChange={(e) => setOptions({ ...options, pngCompressionLevel: parseInt(e.target.value, 10) })}
                             disabled={isConverting}
                         >
-                            <option value={1}>Cepat (Ukuran lebih besar)</option>
-                            <option value={6}>Seimbang (Rekomendasi)</option>
-                            <option value={9}>Tinggi (Ukuran paling kecil, lambat)</option>
+                            <option value={1}>Cepat (ukuran lebih besar)</option>
+                            <option value={6}>Seimbang (rekomendasi)</option>
+                            <option value={9}>Tinggi (paling kecil, lebih lambat)</option>
                         </select>
                     </div>
                 );
             case 'heic':
                 return (
                     <div className={styles.formGroup}>
-                        <div className={styles.label}>Kualitas HEIC</div>
-                        <div className={styles.sliderContainer}>
+                        <label className={styles.formLabel}>Kualitas HEIC</label>
+                        <div className={styles.sliderRow}>
                             <input
                                 type="range"
                                 className={styles.slider}
-                                min="50"
-                                max="100"
+                                min={50}
+                                max={100}
                                 value={options.heicQuality}
-                                onChange={(e) => setOptions({ ...options, heicQuality: parseInt(e.target.value) })}
+                                onChange={(e) => setOptions({ ...options, heicQuality: parseInt(e.target.value, 10) })}
                                 disabled={isConverting}
                             />
                             <span className={styles.sliderValue}>{options.heicQuality}</span>
                         </div>
+                        <span className={styles.helpText}>HEIC menghemat ruang dibanding JPG pada kualitas serupa.</span>
                     </div>
                 );
             default:
@@ -160,103 +179,156 @@ export function ImageConversionPage() {
         }
     };
 
+    const statusLabelFor = (item: typeof queue[number]) => {
+        if (item.status === 'completed') {
+            return <span className={`${styles.fileStatus} ${styles.statusCompleted}`}>Selesai</span>;
+        }
+        if (item.status === 'failed') {
+            return <span className={`${styles.fileStatus} ${styles.statusFailed}`}>Gagal</span>;
+        }
+        if (item.status === 'processing') {
+            return <span className={`${styles.fileStatus} ${styles.statusProcessing}`}>{Math.round(item.progress)}%</span>;
+        }
+        if (item.status === 'inspecting') {
+            return <span className={`${styles.fileStatus} ${styles.statusReady}`}>Memeriksa…</span>;
+        }
+        return <span className={`${styles.fileStatus} ${styles.statusReady}`}>Siap</span>;
+    };
+
     return (
-        <div className={styles.container}>
-            <div className={styles.content}>
-                {/* Kiri: Queue Area */}
+        <div className={styles.page}>
+            <section className={styles.hero}>
+                <h2>Ubah Format Gambar</h2>
+                <p>Ubah JPG, PNG, WEBP, dan HEIC secara lokal di laptopmu — tanpa unggah ke internet.</p>
+            </section>
+
+            <div className={styles.layout}>
+                {/* Kiri: File Gambar */}
                 <div className={styles.mainColumn}>
-                    <div className={styles.header}>
-                        <h1 className={styles.title}>Ubah Format Gambar</h1>
-                        <p className={styles.subtitle}>Konversi berbagai format gambar (JPG, PNG, WEBP, HEIC) dengan kualitas tinggi.</p>
-                    </div>
-                    <div className={styles.queueArea}>
-                        {queue.length === 0 ? (
-                            <div className={styles.emptyState}>
-                                <p>Belum ada gambar yang dipilih.</p>
-                                <button className={styles.secondaryButton} onClick={handlePickFiles} disabled={isInspecting}>
-                                    {isInspecting ? 'Memuat...' : 'Pilih Gambar'}
+                    <section className={styles.card}>
+                        <div className={styles.sectionHead}>
+                            <div>
+                                <h3>File Gambar</h3>
+                                <p>Pilih gambar yang ingin diubah formatnya. Maksimal 50 file dalam satu antrean.</p>
+                            </div>
+                            <div className={styles.actionRow}>
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={handlePickFiles}
+                                    disabled={isBusy || queueFull}
+                                >
+                                    {isInspecting ? 'Memuat…' : 'Pilih Gambar'}
                                 </button>
-                            </div>
-                        ) : (
-                            <div className={styles.queueList}>
-                                {queue.map(item => (
-                                    <div key={item.id} className={styles.queueItem}>
-                                        {item.thumbnailDataUri ? (
-                                            <img src={item.thumbnailDataUri} alt="" className={styles.itemThumbnail} />
-                                        ) : (
-                                            <div className={styles.itemThumbnailPlaceholder}>
-                                                IMG
-                                            </div>
-                                        )}
-                                        <div className={styles.itemDetails}>
-                                            <div className={styles.itemName} title={item.path}>{item.filename}</div>
-                                            <div className={styles.itemMeta}>
-                                                <span>{item.format ? item.format.toUpperCase() : 'Unknown'}</span>
-                                                <span>&bull;</span>
-                                                <span>{item.width && item.height ? `${item.width}x${item.height}` : ''}</span>
-                                                <span>&bull;</span>
-                                                <span>{formatBytes(item.sizeBytes)}</span>
-                                            </div>
-                                            {(item.status === 'processing' || item.status === 'completed' || item.status === 'failed') && (
-                                                <div className={styles.progressBar}>
-                                                    <div 
-                                                        className={styles.progressFill} 
-                                                        style={{ width: `${item.progress}%`, background: item.status === 'failed' ? 'var(--color-danger)' : item.status === 'completed' ? 'var(--color-success)' : 'var(--color-primary)' }}
-                                                    ></div>
-                                                </div>
-                                            )}
-                                            {item.error && (
-                                                <div className={styles.formatWarning} style={{ marginTop: '4px' }}>
-                                                    {item.error}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className={styles.itemActions}>
-                                            {item.status === 'completed' && <span className={`${styles.itemStatus} ${styles.statusCompleted}`}>Selesai</span>}
-                                            {item.status === 'failed' && <span className={`${styles.itemStatus} ${styles.statusFailed}`}>Gagal</span>}
-                                            {item.status === 'processing' && <span className={`${styles.itemStatus} ${styles.statusProcessing}`}>{Math.round(item.progress)}%</span>}
-                                            
-                                            <button 
-                                                className={styles.iconButton} 
-                                                onClick={() => removeFile(item.id)}
-                                                disabled={isConverting}
-                                                title="Hapus dari antrean"
-                                            >
-                                                X
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    {queue.length > 0 && (
-                        <div className={styles.header} style={{ borderTop: '1px solid var(--color-border)', borderBottom: 'none' }}>
-                            <div className={styles.statsRow}>
-                                <span>Total: {stats.totalFiles} berkas</span>
-                                <span>Ukuran: {formatBytes(stats.totalSizeBytes)}</span>
-                            </div>
-                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                <button className={styles.secondaryButton} onClick={handlePickFiles} disabled={isConverting || isInspecting}>
-                                    Tambah File
-                                </button>
-                                <button className={styles.secondaryButton} onClick={clearQueue} disabled={isConverting}>
-                                    Bersihkan
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={clearQueue}
+                                    disabled={isConverting || queue.length === 0}
+                                >
+                                    Hapus Semua
                                 </button>
                             </div>
                         </div>
-                    )}
+
+                        {queue.length === 0 ? (
+                            <button
+                                type="button"
+                                className={styles.uploadZone}
+                                onClick={handlePickFiles}
+                                disabled={isBusy}
+                            >
+                                <span className={styles.uploadIcon}>IMG</span>
+                                <strong>Tarik gambar ke sini atau pilih dari laptop</strong>
+                                <small>Mendukung JPG, PNG, WEBP, HEIC, dan HEIF</small>
+                                <span className={styles.uploadCta}>Pilih Gambar</span>
+                            </button>
+                        ) : (
+                            <div className={styles.queueScroll}>
+                                <div className={styles.fileList}>
+                                    {queue.map((item) => (
+                                        <article
+                                            key={item.id}
+                                            className={`${styles.fileRow} ${item.status === 'failed' ? styles.fileFailed : ''}`}
+                                        >
+                                            <div className={styles.thumbnailContainer}>
+                                                {item.thumbnailDataUri ? (
+                                                    <img src={item.thumbnailDataUri} alt="" className={styles.thumbnail} />
+                                                ) : (
+                                                    <span className={styles.thumbnailPlaceholder}>
+                                                        {item.format || 'IMG'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className={styles.fileDetails}>
+                                                <strong className={styles.fileName} title={item.path}>
+                                                    {item.filename}
+                                                </strong>
+                                                <div className={styles.metaRow}>
+                                                    <span className={styles.formatBadge}>
+                                                        {item.format ? item.format.toUpperCase() : 'Unknown'}
+                                                    </span>
+                                                    {item.width > 0 && item.height > 0 && (
+                                                        <span>{item.width} × {item.height} px</span>
+                                                    )}
+                                                    <span>{formatBytes(item.sizeBytes)}</span>
+                                                </div>
+                                                {item.error && (
+                                                    <em className={styles.errorText}>{item.error}</em>
+                                                )}
+                                                {(item.status === 'processing' || item.status === 'completed' || item.status === 'failed') && (
+                                                    <div className={styles.progressTrack}>
+                                                        <span
+                                                            className={`${styles.progressFill} ${item.status === 'failed' ? styles.failed : ''} ${item.status === 'completed' ? styles.done : ''}`}
+                                                            style={{ width: `${item.progress}%` }}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {statusLabelFor(item)}
+                                            <button
+                                                type="button"
+                                                className={styles.removeButton}
+                                                onClick={() => removeFile(item.id)}
+                                                disabled={isConverting}
+                                                title="Hapus dari antrean"
+                                                aria-label={`Hapus ${item.filename}`}
+                                            >
+                                                ×
+                                            </button>
+                                        </article>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {queue.length === 0 && (
+                            <div className={styles.queueEmpty}>Belum ada gambar dalam antrean.</div>
+                        )}
+
+                        {queue.length > 0 && (
+                            <div className={styles.statsRow}>
+                                <span>Total: <strong>{stats.totalFiles}</strong> berkas</span>
+                                <span>Ukuran: <strong>{formatBytes(stats.totalSizeBytes)}</strong></span>
+                            </div>
+                        )}
+                    </section>
                 </div>
 
-                {/* Kanan: Settings Panel */}
-                <div className={styles.sidebarColumn}>
-                    <div className={styles.panel}>
-                        <h2 className={styles.panelTitle}>Pengaturan Hasil</h2>
-                        
+                {/* Kanan: Pengaturan */}
+                <div className={styles.sideColumn}>
+                    <section className={styles.card}>
+                        <div className={styles.sectionHead}>
+                            <div>
+                                <h3>Pengaturan Hasil</h3>
+                                <p>Atur format dan kualitas gambar output.</p>
+                            </div>
+                        </div>
+
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Format Target</label>
-                            <select 
-                                className={styles.select}
+                            <label className={styles.formLabel}>Format Target</label>
+                            <select
+                                className={styles.selectField}
                                 value={options.outputFormat}
                                 onChange={(e) => setOptions({ ...options, outputFormat: e.target.value as any })}
                                 disabled={isConverting}
@@ -270,104 +342,106 @@ export function ImageConversionPage() {
 
                         {renderFormatSettings()}
 
-                        <div className={styles.formGroup} style={{ marginTop: '0.5rem' }}>
-                            <label className={styles.toggleContainer}>
-                                <input 
-                                    type="checkbox" 
-                                    checked={options.preserveMetadata}
-                                    onChange={(e) => setOptions({ ...options, preserveMetadata: e.target.checked })}
-                                    disabled={isConverting}
-                                />
-                                <span className={styles.toggleLabel}>Pertahankan metadata (EXIF)</span>
-                            </label>
-                        </div>
+                        <label className={styles.toggleRow}>
+                            <span>Pertahankan metadata (EXIF)</span>
+                            <input
+                                type="checkbox"
+                                checked={options.preserveMetadata}
+                                onChange={(e) => setOptions({ ...options, preserveMetadata: e.target.checked })}
+                                disabled={isConverting}
+                            />
+                        </label>
 
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Folder Hasil</label>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <input 
-                                    type="text" 
-                                    className={styles.input} 
-                                    style={{ flex: 1 }}
+                            <label className={styles.formLabel}>Folder Hasil</label>
+                            <div className={styles.inputGroup}>
+                                <input
+                                    type="text"
+                                    className={styles.inputField}
                                     value={options.outputDirectory}
                                     readOnly
-                                    placeholder="Pilih folder tujuan..."
+                                    placeholder="Belum dipilih"
                                 />
-                                <button 
-                                    className={styles.secondaryButton}
+                                <button
+                                    type="button"
+                                    className="secondary-button"
                                     onClick={handlePickOutputFolder}
                                     disabled={isConverting}
-                                    title="Pilih folder"
                                 >
-                                    Pilih
+                                    Pilih Folder
                                 </button>
                             </div>
                         </div>
 
-                        <div className={styles.formGroup}>
-                            <label className={styles.toggleContainer}>
-                                <input 
-                                    type="checkbox" 
-                                    checked={options.openOutputAfterFinish}
-                                    onChange={(e) => setOptions({ ...options, openOutputAfterFinish: e.target.checked })}
-                                    disabled={isConverting}
-                                />
-                                <span className={styles.toggleLabel}>Buka folder setelah selesai</span>
-                            </label>
-                        </div>
+                        <label className={styles.toggleRow}>
+                            <span>Buka folder setelah selesai</span>
+                            <input
+                                type="checkbox"
+                                checked={options.openOutputAfterFinish}
+                                onChange={(e) => setOptions({ ...options, openOutputAfterFinish: e.target.checked })}
+                                disabled={isConverting}
+                            />
+                        </label>
 
-                        <div className={styles.actions}>
+                        <div className={styles.actionArea}>
                             {isConverting ? (
-                                <button className={styles.dangerButton} onClick={cancelJob}>
+                                <button type="button" className={styles.cancelButton} onClick={cancelJob}>
                                     Batalkan Proses
                                 </button>
                             ) : (
-                                <button 
-                                    className={styles.primaryButton} 
-                                    onClick={handleStart}
-                                    disabled={queue.length === 0 || !options.outputDirectory || isInspecting}
-                                >
-                                    Mulai Konversi
-                                </button>
+                                <>
+                                    <button
+                                        type="button"
+                                        className={styles.startButton}
+                                        onClick={handleStart}
+                                        disabled={!canStart}
+                                    >
+                                        Mulai Konversi
+                                    </button>
+                                    {disabledReason && (
+                                        <span className={styles.disabledHint}>{disabledReason}</span>
+                                    )}
+                                </>
                             )}
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
 
-            {/* Dialog Selesai */}
             {showSuccessDialog && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                    <div style={{
-                        background: 'var(--color-surface)', padding: '2rem', borderRadius: '12px',
-                        width: '400px', maxWidth: '90%', display: 'flex', flexDirection: 'column', gap: '1.5rem',
-                        boxShadow: 'var(--shadow-lg)'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div className={styles.modalRoot} role="presentation" onMouseDown={resetJobState}>
+                    <div
+                        className={styles.modal}
+                        role="dialog"
+                        aria-modal="true"
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <div className={styles.modalHead}>
+                            <div className={styles.modalIcon}>✓</div>
                             <div>
-                                <h2 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text)' }}>Konversi Selesai</h2>
-                                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                                    Berhasil: {stats.completedFiles} | Gagal: {stats.failedFiles}
+                                <h2 className={styles.modalTitle}>Konversi Selesai</h2>
+                                <p className={styles.modalSubtitle}>
+                                    Berhasil: {stats.completedFiles} · Gagal: {stats.failedFiles}
                                 </p>
                             </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                        <div className={styles.modalActions}>
                             {stats.failedFiles > 0 && (
-                                <button className={styles.secondaryButton} onClick={openLogFolder}>
+                                <button type="button" className="secondary-button" onClick={openLogFolder}>
                                     Cek Log Error
                                 </button>
                             )}
-                            <button className={styles.secondaryButton} onClick={() => {
-                                resetJobState();
-                                handleOpenOutput();
-                            }}>
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={() => {
+                                    resetJobState();
+                                    handleOpenOutput();
+                                }}
+                            >
                                 Buka Folder
                             </button>
-                            <button className={styles.primaryButton} onClick={resetJobState}>
+                            <button type="button" className="primary-button" onClick={resetJobState}>
                                 Tutup
                             </button>
                         </div>
