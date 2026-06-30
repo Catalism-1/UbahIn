@@ -662,6 +662,15 @@ fn forward_engine_event(app: &AppHandle, value: &Value) {
             });
         }
     }
+    // Copy tool_type from root to payload if not already present
+    if let Some(tool_type) = value.get("tool_type") {
+        if let Some(object) = payload.as_object_mut() {
+            object
+                .entry("tool_type".to_string())
+                .or_insert_with(|| tool_type.clone());
+        }
+    }
+    log_info(format!("TAURI_EVENT_FORWARDED {event_name}"));
     if let Err(error) = app.emit(&event_name, payload) {
         log_error(format!("Gagal emit event {event_name}: {error}"));
     }
