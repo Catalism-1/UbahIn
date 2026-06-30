@@ -297,7 +297,8 @@ export function useImageToPdfJob(isEngineReady: boolean, defaults: ImageToPdfOpt
     const currentJobId = activeJobIdRef.current;
     if (event.job_id && currentJobId && event.job_id !== currentJobId) return;
 
-    console.log('[REACT_EVENT_RECEIVED] job_id=', event.job_id, 'nextStatus=', nextStatus, 'output_pdf_path=', event.output_pdf_path);
+    console.log(`REACT_EVENT_RECEIVED job_id=${event.job_id}`);
+    console.log('RESULT_DIALOG_OPENED');
 
     setResult(event);
     setShowResult(true);
@@ -313,7 +314,7 @@ export function useImageToPdfJob(isEngineReady: boolean, defaults: ImageToPdfOpt
     } else if (event.failed_files > 0 && event.successful_files > 0) {
       addToast('Selesai dengan beberapa file gagal.', 'warning', 'Beberapa gambar tidak dapat dimasukkan ke PDF.');
     } else {
-      addToast('PDF berhasil dibuat!', 'success', `${event.successful_files} gambar digabungkan.`);
+      addToast('PDF berhasil dibuat.', 'success');
     }
   }, [addToast]); // addToast is stable, activeJobId read via ref
 

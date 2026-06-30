@@ -77,6 +77,9 @@ export interface ImageToPdfResult {
   errors: string[];
   image_quality_preset?: string;
   jpeg_quality?: number;
+  total_images?: number;
+  successful_images?: number;
+  failed_images?: number;
 }
 
 export type JobStatus = 'idle' | 'inspecting' | 'ready' | 'starting' | 'processing' | 'cancelling' | 'completed' | 'failed' | 'cancelled';
