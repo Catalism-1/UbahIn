@@ -69,6 +69,22 @@ def validate_image_batch(paths: list[Path]) -> None:
         validate_image_file(path)
 
 
+def validate_heic_file(path: Path) -> None:
+    validate_existing_files([path], {".heic", ".heif"})
+    try:
+        import pillow_heif
+        heif_file = pillow_heif.read_heif(path)
+        if heif_file.size[0] <= 0 or heif_file.size[1] <= 0:
+            raise ValueError("Dimensi gambar tidak valid.")
+    except Exception as exc:
+        raise AppError(f"File HEIC rusak atau tidak dapat dibaca: {path.name}") from exc
+
+
+def validate_heic_batch(paths: list[Path]) -> None:
+    for path in paths:
+        validate_heic_file(path)
+
+
 def parse_page_ranges(ranges_text: str, total_pages: int) -> list[tuple[int, int]]:
     ranges: list[tuple[int, int]] = []
     for chunk in ranges_text.split(","):

@@ -3,6 +3,7 @@ import type { HistoryStatus } from '../types/history';
 const TOOL_LABELS: Record<string, string> = {
   pdf_to_jpg: 'PDF ke JPG',
   image_to_pdf: 'Gambar ke PDF',
+  heic_to_image: 'HEIC ke JPG / PNG',
   merge_pdf: 'Gabungkan PDF',
   split_pdf: 'Pisahkan PDF',
   compress_pdf: 'Kompres PDF',

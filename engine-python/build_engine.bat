@@ -27,6 +27,7 @@ rem Tauri shell spawn menyembunyikan console Windows dengan CREATE_NO_WINDOW.
   --paths ..\src ^
   --collect-all pymupdf ^
   --collect-all PIL ^
+  --collect-all pillow_heif ^
   --hidden-import pypdf ^
   engine_main.py
 if errorlevel 1 exit /b 1

@@ -10,6 +10,7 @@ from .pdf_to_image_service import PdfToImageOptions, PdfToImageService
 from .settings_service import AppSettings, SettingsService
 from .split_pdf_service import SplitPdfOptions, SplitPdfService
 from .zip_service import ZipService
+from .heic_conversion_service import HeicToImageOptions, HeicConversionService
 
 __all__ = [
     "AppSettings",
@@ -33,4 +34,6 @@ __all__ = [
     "SplitPdfOptions",
     "SplitPdfService",
     "ZipService",
+    "HeicToImageOptions",
+    "HeicConversionService",
 ]

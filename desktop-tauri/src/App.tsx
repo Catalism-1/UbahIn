@@ -7,6 +7,7 @@ import { HistoryPage } from './pages/HistoryPage';
 import { PdfToJpgPage } from './pages/PdfToJpgPage/PdfToJpgPage';
 import { HomePage } from './pages/HomePage';
 import { ImageToPdfPage } from './pages/ImageToPdfPage/ImageToPdfPage';
+import { HeicToImagePage } from './pages/HeicToImagePage/HeicToImagePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { useTauriEvent } from './hooks/useTauriEvent';
 import { cancelActiveJobAndClose, checkEngine, logWindowEvent, openLogFolder } from './services/engine';
@@ -28,7 +29,8 @@ type CloseActiveJobPayload = {
 const navigationItems: NavigationItem[] = [
   { id: 'home', label: 'Beranda', icon: 'home' },
   { id: 'pdf', label: 'Ubah PDF', icon: 'pdf' },
-  { id: 'image', label: 'Ubah Gambar', icon: 'image' },
+  { id: 'image', label: 'Gambar ke PDF', icon: 'image' },
+  { id: 'heic', label: 'HEIC ke JPG / PNG', icon: 'image' },
   { id: 'history', label: 'Riwayat', icon: 'history' },
   { id: 'engine', label: 'Diagnostik', icon: 'settings' },
   { id: 'settings', label: 'Pengaturan', icon: 'settings' },
@@ -38,6 +40,7 @@ const pageMeta: Record<PageId, { title: string; eyebrow: string; description: st
   home: { title: 'Beranda', eyebrow: 'Ringkasan', description: 'Pilih alat yang kamu butuhkan.' },
   pdf: { title: 'PDF ke JPG', eyebrow: 'Alat PDF', description: 'Ubah halaman PDF menjadi gambar JPG.' },
   image: { title: 'Gambar ke PDF', eyebrow: 'Alat Gambar', description: 'Gabungkan beberapa gambar menjadi satu file PDF.' },
+  heic: { title: 'HEIC ke JPG / PNG', eyebrow: 'Alat Gambar', description: 'Ubah foto HEIC menjadi JPG atau PNG.' },
   history: { title: 'Riwayat', eyebrow: 'Aktivitas', description: 'Riwayat konversi lokal.' },
   settings: { title: 'Pengaturan', eyebrow: 'Preferensi', description: 'Pengaturan frontend sementara.' },
   engine: { title: 'Diagnostik Sistem', eyebrow: 'Diagnostik', description: 'Informasi status engine dan log.' },
@@ -150,6 +153,15 @@ export default function App() {
     if (activePage === 'image') {
       return (
         <ImageToPdfPage
+          isEngineReady={engineStatus === 'ready'}
+          settings={settings}
+          onJobStateChange={handlePdfJobStateChange}
+        />
+      );
+    }
+    if (activePage === 'heic') {
+      return (
+        <HeicToImagePage
           isEngineReady={engineStatus === 'ready'}
           settings={settings}
           onJobStateChange={handlePdfJobStateChange}

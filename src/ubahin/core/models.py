@@ -52,6 +52,7 @@ class ToolType(str, Enum):
     IMAGE_CONVERT = "image_convert"
     IMAGE_RESIZE = "image_resize"
     IMAGE_COMPRESS = "image_compress"
+    HEIC_TO_IMAGE = "heic_to_image"
 
 
 @dataclass(slots=True)

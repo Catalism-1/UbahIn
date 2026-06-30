@@ -9,7 +9,7 @@ from ubahin.core.job import Job
 from ubahin.core.models import AppError, JobOptions, JobStatus, ServiceResult, ToolType, utc_now
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.resource_governor import ResourceGovernor
-from ubahin.core.validation import validate_image_batch, validate_output_dir, validate_pdf_batch, validate_pdf_file
+from ubahin.core.validation import validate_image_batch, validate_output_dir, validate_pdf_batch, validate_pdf_file, validate_heic_batch
 from ubahin.services import (
     CompressPdfOptions,
     CompressPdfService,
@@ -29,6 +29,8 @@ from ubahin.services import (
     SplitPdfOptions,
     SplitPdfService,
     ZipService,
+    HeicToImageOptions,
+    HeicConversionService,
 )
 from ubahin.utils import estimated_output_bytes, get_logger
 
@@ -105,6 +107,8 @@ class JobManager:
             validate_pdf_file(job.input_files[0])
         elif job.tool_type in {ToolType.IMAGE_TO_PDF, ToolType.IMAGE_CONVERT, ToolType.IMAGE_RESIZE, ToolType.IMAGE_COMPRESS}:
             validate_image_batch(job.input_files)
+        elif job.tool_type == ToolType.HEIC_TO_IMAGE:
+            validate_heic_batch(job.input_files)
         job.status = JobStatus.PENDING
 
     def queue_job(self, job_id: str) -> None:
@@ -277,6 +281,20 @@ class JobManager:
                     image_quality_preset=str(params.get("image_quality_preset", "balanced")),
                     jpeg_quality=int(params.get("jpeg_quality", 85)),
                     optimize_pdf_size=bool(params.get("optimize_pdf_size", True)),
+                ),
+                job.cancellation_token,
+                progress,
+            )
+        elif job.tool_type == ToolType.HEIC_TO_IMAGE:
+            result = HeicConversionService().convert(
+                job.input_files,
+                HeicToImageOptions(
+                    output_dir=job.options.output_dir,
+                    output_format=str(params.get("output_format", "jpg")),
+                    jpeg_quality_preset=str(params.get("jpeg_quality_preset", "balanced")),
+                    jpeg_quality=int(params.get("jpeg_quality", 85)),
+                    png_compression_level=int(params.get("png_compression_level", 6)),
+                    preserve_metadata=bool(params.get("preserve_metadata", False)),
                 ),
                 job.cancellation_token,
                 progress,
