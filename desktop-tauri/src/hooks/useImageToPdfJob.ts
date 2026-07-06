@@ -183,7 +183,7 @@ export function useImageToPdfJob(isEngineReady: boolean, defaults: ImageToPdfOpt
 
   const startJob = useCallback(async () => {
     if (!isEngineReady) {
-      addToast('Engine belum siap.', 'warning', 'Jalankan Pemeriksaan Engine terlebih dahulu.');
+      addToast('Engine belum siap.', 'warning', 'Tunggu proses penyiapan selesai atau buka Diagnostik untuk mencoba lagi.');
       return;
     }
     if (!canStart) return;

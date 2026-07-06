@@ -328,11 +328,11 @@
 }
 
 .rowStatus.completed {
-  color: var(--sage);
+  color: var(--success);
 }
 
 .rowStatus.failed {
-  color: var(--red);
+  color: var(--error);
 }
 
 .rowControls {
@@ -368,9 +368,9 @@
 }
 
 .iconBtn.delete:hover:not(:disabled) {
-  background: rgba(244, 63, 94, 0.08);
-  border-color: rgba(244, 63, 94, 0.2);
-  color: var(--red);
+  background: var(--error-soft);
+  border-color: var(--error);
+  color: var(--error);
 }
 
 /* Settings elements */

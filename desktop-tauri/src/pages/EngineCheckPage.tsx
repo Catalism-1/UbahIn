@@ -3,22 +3,23 @@ import { getVersion } from '@tauri-apps/api/app';
 import { appDataDir } from '@tauri-apps/api/path';
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
 import type { EngineHealth } from '../types/engine';
+import type { EngineStatus } from '../types/navigation';
 import './pages.css';
 
-type EnginePageStatus = 'idle' | 'checking' | 'ready' | 'failed';
-
 interface EngineCheckPageProps {
-  status: EnginePageStatus;
+  status: EngineStatus;
   health: EngineHealth | null;
   message: string;
-  onCheck: () => void;
+  technicalDetail: string;
+  checkedAt: string | null;
+  onCheck: () => Promise<void>;
   onOpenLogFolder: () => void;
 }
 
-function statusText(status: EnginePageStatus): string {
-  if (status === 'checking') return 'Sedang diperiksa...';
+function statusText(status: EngineStatus): string {
+  if (status === 'checking') return 'Menyiapkan engine...';
   if (status === 'ready') return 'Berjalan lancar';
-  if (status === 'failed') return 'Bermasalah';
+  if (status === 'error') return 'Bermasalah';
   return 'Belum diperiksa';
 }
 
@@ -27,7 +28,7 @@ function available(value: boolean | undefined): string {
   return value ? 'Tersedia' : 'Tidak tersedia';
 }
 
-export function EngineCheckPage({ status, health, message, onCheck, onOpenLogFolder }: EngineCheckPageProps) {
+export function EngineCheckPage({ status, health, message, technicalDetail, checkedAt, onCheck, onOpenLogFolder }: EngineCheckPageProps) {
   const [appVersion, setAppVersion] = useState<string>('-');
   const [appDataPath, setAppDataPath] = useState<string>('-');
 
@@ -62,6 +63,8 @@ export function EngineCheckPage({ status, health, message, onCheck, onOpenLogFol
   async function handleCopyDiagnostics() {
     const info = `Status: ${statusText(status)}
 Pesan: ${message}
+Detail Teknis: ${technicalDetail || '-'}
+Terakhir Dicek: ${checkedAt ?? '-'}
 Versi Aplikasi: ${appVersion}
 Versi Engine: ${health?.engine_version ?? '-'}
 Platform: ${health?.platform ?? '-'}
@@ -86,14 +89,20 @@ Lokasi App Data: ${appDataPath}`;
             <h2 id="engine-title">Diagnostik Sistem</h2>
             <p>Informasi status engine Python dan path aplikasi lokal.</p>
           </div>
-          <span className={`status-pill ${status === 'ready' ? 'ready' : status === 'failed' ? 'failed' : ''}`}>{statusText(status)}</span>
+          <span className={`status-pill ${status === 'ready' ? 'ready' : status === 'error' ? 'failed' : ''}`}>{statusText(status)}</span>
         </div>
 
         {message ? <div className="notice">{message}</div> : null}
+        {technicalDetail ? (
+          <div className="notice technical-notice">
+            <strong>Detail teknis</strong>
+            <code>{technicalDetail}</code>
+          </div>
+        ) : null}
 
         <div className="button-row">
-          <button type="button" className="primary-button" onClick={onCheck} disabled={status === 'checking'}>
-            {status === 'checking' ? 'Memeriksa...' : 'Cek Status Engine'}
+          <button type="button" className="primary-button" onClick={() => void onCheck()} disabled={status === 'checking'}>
+            {status === 'checking' ? 'Menyiapkan...' : 'Cek Ulang Engine'}
           </button>
           <button type="button" className="secondary-button" onClick={handleCopyDiagnostics}>
             Salin Informasi Diagnostik
@@ -118,6 +127,10 @@ Lokasi App Data: ${appDataPath}`;
           <div>
             <dt>Status Sidecar</dt>
             <dd>{statusText(status)}</dd>
+          </div>
+          <div>
+            <dt>Terakhir dicek</dt>
+            <dd>{checkedAt ? new Date(checkedAt).toLocaleString('id-ID') : '-'}</dd>
           </div>
           <div>
             <dt>Lokasi App Data / Log</dt>

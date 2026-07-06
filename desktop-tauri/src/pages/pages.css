@@ -204,22 +204,37 @@
 }
 
 .status-pill.ready {
-  background: rgba(120, 168, 138, 0.15);
+  background: var(--success-soft);
   color: var(--success);
 }
 
 .status-pill.failed {
-  background: rgba(212, 123, 123, 0.15);
+  background: var(--error-soft);
   color: var(--error);
 }
 
 .notice {
-  background: rgba(246, 217, 199, 0.48);
-  border: 1px solid var(--peach);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
   border-radius: 13px;
   color: var(--text);
   font-size: 13px;
   padding: 12px 14px;
+}
+
+.technical-notice {
+  background: var(--surface-2);
+  border-color: var(--border);
+  display: grid;
+  gap: 8px;
+}
+
+.technical-notice code {
+  color: var(--text-2);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .button-row {
@@ -239,7 +254,7 @@
 
 .primary-button {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-contrast);
 }
 
 .primary-button:hover {
@@ -416,7 +431,7 @@
 }
 
 .switch span {
-  background: #fff;
+  background: var(--control-knob);
   border-radius: 50%;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   display: block;
@@ -548,17 +563,17 @@
 }
 
 .history-badge.success {
-  background: rgba(120, 168, 138, 0.16);
+  background: var(--success-soft);
   color: var(--success);
 }
 
 .history-badge.warning {
-  background: rgba(215, 168, 89, 0.18);
+  background: var(--warning-soft);
   color: var(--warning);
 }
 
 .history-badge.error {
-  background: rgba(212, 123, 123, 0.16);
+  background: var(--error-soft);
   color: var(--error);
 }
 

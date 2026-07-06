@@ -74,7 +74,7 @@ from ubahin.core import JobManager, ToolType
 from ubahin.core.job import Job
 from ubahin.core.models import AppError
 from ubahin.core.progress import ProgressInfo
-from ubahin.services import HistoryService, SettingsService
+from ubahin.services import HistoryService, ImageConversionService, SettingsService
 from ubahin.services.settings_service import AppSettings
 from ubahin.utils import open_in_file_manager
 
@@ -1084,7 +1084,8 @@ def run_stdio() -> int:
             response = runtime.handle_request(payload)
         except Exception:
             print(traceback.format_exc(), file=sys.stderr, flush=True)
-            response = _error(None, "Engine tidak dapat memproses request.")
+            request_id = payload.get("id") if isinstance(payload, dict) else None
+            response = _error(request_id, "Engine tidak dapat memproses request.")
         runtime.write_message(response)
 
         # Jika menerima instruksi shutdown, keluar dengan aman

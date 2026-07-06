@@ -19,7 +19,7 @@ interface SidebarProps {
 function engineLabel(status: EngineStatus): string {
   if (status === 'ready') return 'Engine siap';
   if (status === 'error') return 'Engine bermasalah';
-  if (status === 'checking') return 'Memeriksa engine';
+  if (status === 'checking') return 'Menyiapkan engine...';
   return 'Belum diperiksa';
 }
 

@@ -6,17 +6,25 @@ import { ResultDialog } from '../../components/ResultDialog/ResultDialog';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { Toast } from '../../components/common/Toast';
 import { usePdfToJpgJob } from '../../hooks/usePdfToJpgJob';
+import type { EngineStatus } from '../../types/navigation';
 import type { AppSettings } from '../../types/settings';
 import type { PdfJobDefaults } from './types';
 import styles from './PdfToJpgPage.module.css';
 
 interface PdfToJpgPageProps {
   isEngineReady: boolean;
+  engineStatus: EngineStatus;
   settings: AppSettings;
   onJobStateChange: (state: { activeJobId: string | null; isConversionRunning: boolean }) => void;
 }
 
-export function PdfToJpgPage({ isEngineReady, settings, onJobStateChange }: PdfToJpgPageProps) {
+function engineNoticeText(status: EngineStatus): string {
+  if (status === 'checking') return 'Menyiapkan engine... Konversi bisa dimulai setelah status engine siap.';
+  if (status === 'error') return 'Engine belum dapat dijalankan. Buka Diagnostik untuk melihat detail atau coba lagi.';
+  return 'Engine belum siap. Buka Diagnostik untuk menjalankan pemeriksaan.';
+}
+
+export function PdfToJpgPage({ isEngineReady, engineStatus, settings, onJobStateChange }: PdfToJpgPageProps) {
   const defaults = useMemo<PdfJobDefaults>(
     () => ({
       outputDirectory: settings.default_output_directory,
@@ -47,7 +55,7 @@ export function PdfToJpgPage({ isEngineReady, settings, onJobStateChange }: PdfT
 
       {!isEngineReady ? (
         <div className={styles.engineNotice}>
-          Engine belum diperiksa. Jalankan Pemeriksaan Engine dari tombol di kanan atas sebelum memulai konversi.
+          {engineNoticeText(engineStatus)}
         </div>
       ) : null}
 

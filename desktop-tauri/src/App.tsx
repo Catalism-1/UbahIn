@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from './components/AppShell/AppShell';
 import { useAppSettings } from './hooks/useAppSettings';
 import { ComingSoonPage } from './pages/ComingSoonPage';
@@ -10,11 +10,9 @@ import { ImageToPdfPage } from './pages/ImageToPdfPage/ImageToPdfPage';
 import { ImageConversionPage } from './pages/ImageConversionPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { useTauriEvent } from './hooks/useTauriEvent';
-import { cancelActiveJobAndClose, checkEngine, logWindowEvent, openLogFolder } from './services/engine';
-import type { EngineHealth } from './types/engine';
+import { useEngineStatus } from './hooks/useEngineStatus';
+import { cancelActiveJobAndClose, logWindowEvent, openLogFolder } from './services/engine';
 import type { EngineStatus, NavigationItem, PageId } from './types/navigation';
-
-type EnginePageStatus = 'idle' | 'checking' | 'ready' | 'failed';
 
 interface RuntimeState {
   isEngineCheckRunning: boolean;
@@ -50,36 +48,26 @@ const pageMeta: Record<PageId, { title: string; eyebrow: string; description: st
   'pdf-word': { title: 'PDF ke Word', eyebrow: 'Segera hadir', description: 'Fitur PDF ke Word belum dipindahkan ke React.' },
 };
 
-function shellEngineStatus(status: EnginePageStatus): EngineStatus {
-  if (status === 'ready') return 'ready';
-  if (status === 'failed') return 'error';
-  if (status === 'checking') return 'checking';
-  return 'unchecked';
-}
-
 export default function App() {
   const { settings, theme, usingFallback, previewTheme, persistTheme, saveSettings } = useAppSettings();
+  const engine = useEngineStatus();
   const [activePage, setActivePage] = useState<PageId>('home');
-  const [engineStatus, setEngineStatus] = useState<EnginePageStatus>('idle');
-  const [health, setHealth] = useState<EngineHealth | null>(null);
-  const [message, setMessage] = useState('');
-  const [isEngineCheckRunning, setIsEngineCheckRunning] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [isConversionRunning, setIsConversionRunning] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const runtimeRef = useRef<RuntimeState>({
-    isEngineCheckRunning: false,
+    isEngineCheckRunning: true,
     activeJobId: null,
     isConversionRunning: false,
   });
 
   useEffect(() => {
     runtimeRef.current = {
-      isEngineCheckRunning,
+      isEngineCheckRunning: engine.status === 'checking',
       activeJobId,
       isConversionRunning,
     };
-  }, [activeJobId, isConversionRunning, isEngineCheckRunning]);
+  }, [activeJobId, engine.status, isConversionRunning]);
 
   const handleNativeCloseActiveJob = useCallback((payload: CloseActiveJobPayload) => {
     void logWindowEvent(`close_blocked_active_job job=${payload.active_job_id ?? runtimeRef.current.activeJobId ?? 'none'}`);
@@ -89,37 +77,17 @@ export default function App() {
   useTauriEvent<CloseActiveJobPayload>('app://close-active-job', handleNativeCloseActiveJob, true);
 
   const meta = pageMeta[activePage];
-  const statusForShell = useMemo(() => shellEngineStatus(engineStatus), [engineStatus]);
+  const engineStatus: EngineStatus = engine.status;
 
   async function handleCheckEngine() {
-    setActivePage('engine');
-    setIsEngineCheckRunning(true);
-    setEngineStatus('checking');
-    setMessage('');
-    setHealth(null);
-    try {
-      const response = await checkEngine();
-      if (response.ok && response.data) {
-        setHealth(response.data);
-        setEngineStatus('ready');
-        return;
-      }
-      setMessage(response.error?.message ?? 'Engine tidak siap.');
-      setEngineStatus('failed');
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Engine tidak dapat dijalankan.');
-      setEngineStatus('failed');
-    } finally {
-      setIsEngineCheckRunning(false);
-    }
+    await engine.check();
   }
 
   async function handleOpenLogFolder() {
     try {
       await openLogFolder();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Folder log tidak dapat dibuka.');
-      setEngineStatus('failed');
+      console.error('Folder log tidak dapat dibuka.', error);
     }
   }
 
@@ -145,6 +113,7 @@ export default function App() {
       return (
         <PdfToJpgPage
           isEngineReady={engineStatus === 'ready'}
+          engineStatus={engineStatus}
           settings={settings}
           onJobStateChange={handlePdfJobStateChange}
         />
@@ -154,6 +123,7 @@ export default function App() {
       return (
         <ImageToPdfPage
           isEngineReady={engineStatus === 'ready'}
+          engineStatus={engineStatus}
           settings={settings}
           onJobStateChange={handlePdfJobStateChange}
         />
@@ -161,15 +131,22 @@ export default function App() {
     }
     if (activePage === 'image-conv') {
       return (
-        <ImageConversionPage />
+        <ImageConversionPage
+          isEngineReady={engineStatus === 'ready'}
+          engineStatus={engineStatus}
+          settings={settings}
+          onJobStateChange={handlePdfJobStateChange}
+        />
       );
     }
     if (activePage === 'engine') {
       return (
         <EngineCheckPage
           status={engineStatus}
-          health={health}
-          message={message}
+          health={engine.health}
+          message={engine.message}
+          technicalDetail={engine.technicalDetail}
+          checkedAt={engine.checkedAt}
           onCheck={handleCheckEngine}
           onOpenLogFolder={handleOpenLogFolder}
         />
@@ -195,7 +172,7 @@ export default function App() {
         activePage={activePage}
         title={meta.title}
         eyebrow={meta.eyebrow}
-        engineStatus={statusForShell}
+        engineStatus={engineStatus}
         theme={theme}
         navigationItems={navigationItems}
         onThemeChange={(next) => void persistTheme(next)}

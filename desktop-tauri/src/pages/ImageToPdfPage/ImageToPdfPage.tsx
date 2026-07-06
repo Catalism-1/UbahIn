@@ -2,12 +2,14 @@ import React, { useEffect, useMemo } from 'react';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { Toast } from '../../components/common/Toast';
 import { useImageToPdfJob } from '../../hooks/useImageToPdfJob';
+import type { EngineStatus } from '../../types/navigation';
 import type { AppSettings } from '../../types/settings';
 import type { ImageToPdfOptions } from './types';
 import styles from './ImageToPdfPage.module.css';
 
 interface ImageToPdfPageProps {
   isEngineReady: boolean;
+  engineStatus: EngineStatus;
   settings: AppSettings;
   onJobStateChange: (state: { activeJobId: string | null; isConversionRunning: boolean }) => void;
 }
@@ -24,7 +26,13 @@ function formatBytes(bytes: number): string {
   return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
-export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: ImageToPdfPageProps) {
+function engineNoticeText(status: EngineStatus): string {
+  if (status === 'checking') return 'Menyiapkan engine... Konversi bisa dimulai setelah status engine siap.';
+  if (status === 'error') return 'Engine belum dapat dijalankan. Buka Diagnostik untuk melihat detail atau coba lagi.';
+  return 'Engine belum siap. Buka Diagnostik untuk menjalankan pemeriksaan.';
+}
+
+export function ImageToPdfPage({ isEngineReady, engineStatus, settings, onJobStateChange }: ImageToPdfPageProps) {
   const defaults = useMemo<ImageToPdfOptions>(
     () => ({
       outputDirectory: settings.default_output_directory || '',
@@ -73,8 +81,8 @@ export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: Im
       </section>
 
       {!isEngineReady ? (
-        <div style={{ background: 'var(--red-light)', border: '1px solid var(--red)', color: 'var(--red)', padding: 14, borderRadius: 14, fontSize: 13.5 }}>
-          Engine belum diperiksa. Jalankan Pemeriksaan Engine dari tombol di kanan atas sebelum memulai konversi.
+        <div style={{ background: 'var(--error-soft)', border: '1px solid var(--error)', color: 'var(--error)', padding: 14, borderRadius: 14, fontSize: 13.5 }}>
+          {engineNoticeText(engineStatus)}
         </div>
       ) : null}
 
@@ -179,7 +187,7 @@ export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: Im
                             </span>
                           )}
                         </div>
-                        {file.error && <em style={{ color: 'var(--red)', fontSize: 11, fontStyle: 'normal' }}>{file.error}</em>}
+                        {file.error && <em style={{ color: 'var(--error)', fontSize: 11, fontStyle: 'normal' }}>{file.error}</em>}
                       </div>
 
                       <div className={styles.rowControls}>
@@ -454,8 +462,8 @@ export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: Im
               <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}>
                 <div
                   style={{
-                    background: !isSuccess ? 'var(--red-light)' : 'var(--sage-light)',
-                    color: !isSuccess ? 'var(--red)' : 'var(--sage)',
+                    background: !isSuccess ? 'var(--error-soft)' : 'var(--success-soft)',
+                    color: !isSuccess ? 'var(--error)' : 'var(--success)',
                     width: 46,
                     height: 46,
                     borderRadius: '50%',
@@ -486,13 +494,13 @@ export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: Im
                     <div className={styles.resultStats}>
                       <div className={styles.statItem}>
                         <span className={styles.statLabel}>Berhasil</span>
-                        <span className={styles.statVal} style={{ color: 'var(--sage)' }}>
+                        <span className={styles.statVal} style={{ color: 'var(--success)' }}>
                           {job.result.successful_files} gambar
                         </span>
                       </div>
                       <div className={styles.statItem}>
                         <span className={styles.statLabel}>Gagal</span>
-                        <span className={styles.statVal} style={{ color: job.result.failed_files > 0 ? 'var(--red)' : 'var(--text-3)' }}>
+                        <span className={styles.statVal} style={{ color: job.result.failed_files > 0 ? 'var(--error)' : 'var(--text-3)' }}>
                           {job.result.failed_files} gambar
                         </span>
                       </div>
@@ -522,7 +530,7 @@ export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: Im
                   </>
                 ) : (
                   <div style={{ display: 'grid', gap: 12 }}>
-                    <div style={{ background: 'var(--red-light)', border: '1px solid var(--red)', borderRadius: 10, padding: 12, fontSize: 13, color: 'var(--text)' }}>
+                    <div style={{ background: 'var(--error-soft)', border: '1px solid var(--error)', borderRadius: 10, padding: 12, fontSize: 13, color: 'var(--text)' }}>
                       <strong>Detail error:</strong>
                       <p style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>
                         {job.result.errors.join('\n') || 'Terjadi kesalahan internal saat membuat file PDF.'}
@@ -532,7 +540,7 @@ export function ImageToPdfPage({ isEngineReady, settings, onJobStateChange }: Im
                 )}
 
                 {job.result.warnings.length > 0 && (
-                  <div style={{ background: 'var(--warning-light)', border: '1px solid var(--warning)', borderRadius: 10, padding: 12, fontSize: 12.5, color: 'var(--text)' }}>
+                  <div style={{ background: 'var(--warning-soft)', border: '1px solid var(--warning)', borderRadius: 10, padding: 12, fontSize: 12.5, color: 'var(--text)' }}>
                     <strong>Peringatan:</strong>
                     <ul style={{ paddingLeft: 18, marginTop: 4 }}>
                       {job.result.warnings.map((w, idx) => (

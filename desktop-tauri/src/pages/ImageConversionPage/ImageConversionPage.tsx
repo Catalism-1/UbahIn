@@ -6,6 +6,7 @@ import { ImageConversionOptions } from './types';
 import { pickConversionFiles } from '../../services/imageConversion';
 import { openOutputDirectory, pickOutputDirectory } from '../../services/pdfToJpg';
 import { openLogFolder } from '../../services/engine';
+import type { EngineStatus } from '../../types/navigation';
 
 function formatBytes(bytes: number) {
     if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB';
@@ -19,8 +20,22 @@ function formatBytes(bytes: number) {
     return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
-export function ImageConversionPage() {
-    const { settings } = useAppSettings();
+interface ImageConversionPageProps {
+    isEngineReady?: boolean;
+    engineStatus?: EngineStatus;
+    settings?: any;
+    onJobStateChange?: (state: { activeJobId: string | null; isConversionRunning: boolean }) => void;
+}
+
+function engineNoticeText(status: EngineStatus): string {
+    if (status === 'checking') return 'Menyiapkan engine... Konversi bisa dimulai setelah status engine siap.';
+    if (status === 'error') return 'Engine belum dapat dijalankan. Buka Diagnostik untuk melihat detail atau coba lagi.';
+    return 'Engine belum siap. Buka Diagnostik untuk menjalankan pemeriksaan.';
+}
+
+export function ImageConversionPage({ isEngineReady = true, engineStatus = 'ready', settings: _settings, onJobStateChange }: ImageConversionPageProps = {}) {
+    const { settings: appSettings } = useAppSettings();
+    const settings = _settings || appSettings;
     const {
         queue,
         stats,
@@ -32,8 +47,13 @@ export function ImageConversionPage() {
         clearQueue,
         startJob,
         cancelJob,
-        resetJobState
+        resetJobState,
+        activeJobId
     } = useImageConversionJob();
+
+    useEffect(() => {
+        onJobStateChange?.({ activeJobId, isConversionRunning: isConverting });
+    }, [activeJobId, isConverting, onJobStateChange]);
 
     const [options, setOptions] = useState<ImageConversionOptions>({
         outputDirectory: settings.default_output_directory || '',
@@ -76,6 +96,9 @@ export function ImageConversionPage() {
     };
 
     const handleStart = () => {
+        if (!isEngineReady) {
+            return;
+        }
         startJob(options);
     };
 
@@ -87,17 +110,20 @@ export function ImageConversionPage() {
 
     const isBusy = isConverting || isInspecting;
     const queueFull = queue.length >= 50;
-    const canStart = queue.length > 0 && Boolean(options.outputDirectory) && !isBusy;
+    const readyFileCount = queue.filter(item => item.status === 'ready' || item.status === 'completed').length;
+    const canStart = isEngineReady && readyFileCount > 0 && Boolean(options.outputDirectory) && !isBusy;
 
     const disabledReason = useMemo(() => {
+        if (!isEngineReady) return engineNoticeText(engineStatus);
         if (isConverting) return null;
         if (queue.length === 0 && !options.outputDirectory) {
             return 'Pilih gambar dan folder hasil untuk memulai.';
         }
         if (queue.length === 0) return 'Tambahkan minimal satu gambar ke antrean.';
+        if (readyFileCount === 0) return 'Tidak ada gambar yang siap diproses.';
         if (!options.outputDirectory) return 'Pilih folder hasil terlebih dahulu.';
         return null;
-    }, [isConverting, queue.length, options.outputDirectory]);
+    }, [engineStatus, isEngineReady, isConverting, queue.length, readyFileCount, options.outputDirectory]);
 
     const renderFormatSettings = () => {
         switch (options.outputFormat) {

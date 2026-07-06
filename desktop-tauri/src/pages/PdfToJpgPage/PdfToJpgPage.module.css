@@ -262,12 +262,12 @@
 }
 
 .good {
-  background: rgba(120, 168, 138, 0.15);
+  background: var(--success-soft);
   color: var(--success);
 }
 
 .bad {
-  background: rgba(212, 123, 123, 0.15);
+  background: var(--error-soft);
   color: var(--error);
 }
 
@@ -409,7 +409,7 @@
 .startButton {
   background: var(--accent);
   border-radius: 14px;
-  color: #fff;
+  color: var(--accent-contrast);
   font-size: 14px;
   font-weight: 900;
   min-height: 48px;

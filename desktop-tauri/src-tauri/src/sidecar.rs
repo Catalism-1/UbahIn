@@ -307,12 +307,16 @@ impl SidecarManager {
             log_error(format!(
                 "Gagal menulis request sidecar action={action}: {error}"
             ));
-            return Err("Engine Python tidak dapat menerima request.".to_string());
+            return Err(format!(
+                "Engine Python tidak dapat menerima request. Detail teknis: {error}"
+            ));
         }
 
         match timeout(duration, rx).await {
             Ok(Ok(result)) => result,
-            Ok(Err(_)) => Err("Engine berhenti sebelum response diterima.".to_string()),
+            Ok(Err(error)) => Err(format!(
+                "Engine berhenti sebelum response diterima. Detail teknis: {error}"
+            )),
             Err(_) => {
                 let mut pending = self
                     .pending
@@ -320,7 +324,10 @@ impl SidecarManager {
                     .map_err(|_| "Engine lock gagal.".to_string())?;
                 pending.remove(&request_id);
                 log_error(format!("Timeout request sidecar action={action}"));
-                Err("Engine terlalu lama merespons.".to_string())
+                Err(format!(
+                    "Engine terlalu lama merespons action={action} setelah {} detik.",
+                    duration.as_secs()
+                ))
             }
         }
     }
@@ -457,13 +464,15 @@ impl SidecarManager {
             .sidecar(ENGINE_SIDECAR)
             .map_err(|error| {
                 log_error(format!("Gagal menyiapkan sidecar: {error}"));
-                "Engine Python tidak ditemukan atau belum dibangun.".to_string()
+                format!(
+                    "Engine Python tidak ditemukan atau belum dibangun. Sidecar: {ENGINE_SIDECAR}. Detail teknis: {error}"
+                )
             })?
             .args(["--stdio"]);
 
         let (mut rx, child) = command.spawn().map_err(|error| {
             log_error(format!("Gagal menjalankan sidecar: {error}"));
-            "Engine Python tidak dapat dijalankan.".to_string()
+            format!("Engine Python tidak dapat dijalankan. Detail teknis: {error}")
         })?;
 
         let (termination_tx, termination_rx) = watch::channel(false);

@@ -37,7 +37,7 @@
   align-items: center;
   background: var(--accent);
   border-radius: 12px;
-  color: #fff;
+  color: var(--accent-contrast);
   display: grid;
   flex: 0 0 38px;
   height: 38px;
