@@ -23,7 +23,7 @@ const tools: Array<{
   { id: 'pdf', title: 'PDF ke JPG', description: 'Ubah setiap halaman PDF menjadi gambar JPG.', tint: 'var(--blue)', icon: 'PDF', badge: 'Siap dipakai' },
   { id: 'image', title: 'Gambar ke PDF', description: 'Gabungkan gambar menjadi dokumen PDF.', tint: 'var(--sage)', icon: 'IMG', badge: 'Siap dipakai' },
   { id: 'image-conv', title: 'Ubah Format Gambar', description: 'Ubah format gambar antara JPG, PNG, WEBP, dan HEIC secara offline.', tint: 'var(--peach)', icon: 'IMG', badge: 'Siap dipakai' },
-  { id: 'merge-pdf', title: 'Gabungkan PDF', description: 'Satukan beberapa PDF dalam satu file.', tint: 'var(--lavender)', icon: 'PDF', badge: 'Segera hadir', muted: true },
+  { id: 'merge-pdf', title: 'Gabungkan PDF', description: 'Satukan beberapa PDF dalam satu file.', tint: 'var(--lavender)', icon: 'PDF', badge: 'Siap dipakai' },
   { id: 'compress-pdf', title: 'Kompres PDF', description: 'Kecilkan ukuran PDF untuk dibagikan.', tint: 'var(--peach)', icon: 'ZIP', badge: 'Segera hadir', muted: true },
   { id: 'resize-image', title: 'Ubah Ukuran Gambar', description: 'Atur ulang dimensi gambar lokal.', tint: 'var(--pink)', icon: 'PX', badge: 'Segera hadir', muted: true },
   { id: 'pdf-word', title: 'PDF ke Word', description: 'Ekspor konten PDF ke dokumen Word.', tint: 'var(--blue)', icon: 'DOC', badge: 'Segera hadir', muted: true },

@@ -8,6 +8,7 @@ import { PdfToJpgPage } from './pages/PdfToJpgPage/PdfToJpgPage';
 import { HomePage } from './pages/HomePage';
 import { ImageToPdfPage } from './pages/ImageToPdfPage/ImageToPdfPage';
 import { ImageConversionPage } from './pages/ImageConversionPage';
+import { MergePdfPage } from './pages/MergePdfPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { useTauriEvent } from './hooks/useTauriEvent';
 import { useEngineStatus } from './hooks/useEngineStatus';
@@ -27,6 +28,7 @@ type CloseActiveJobPayload = {
 const navigationItems: NavigationItem[] = [
   { id: 'home', label: 'Beranda', icon: 'home' },
   { id: 'pdf', label: 'Ubah PDF', icon: 'pdf' },
+  { id: 'merge-pdf', label: 'Gabungkan PDF', icon: 'pdf' },
   { id: 'image', label: 'Gambar ke PDF', icon: 'image' },
   { id: 'image-conv', label: 'Ubah Format Gambar', icon: 'image' },
   { id: 'history', label: 'Riwayat', icon: 'history' },
@@ -42,7 +44,7 @@ const pageMeta: Record<PageId, { title: string; eyebrow: string; description: st
   history: { title: 'Riwayat', eyebrow: 'Aktivitas', description: 'Riwayat konversi lokal.' },
   settings: { title: 'Pengaturan', eyebrow: 'Preferensi', description: 'Pengaturan frontend sementara.' },
   engine: { title: 'Diagnostik Sistem', eyebrow: 'Diagnostik', description: 'Informasi status engine dan log.' },
-  'merge-pdf': { title: 'Gabungkan PDF', eyebrow: 'Segera hadir', description: 'Fitur gabung PDF belum dipindahkan ke React.' },
+  'merge-pdf': { title: 'Gabungkan PDF', eyebrow: 'Alat PDF', description: 'Satukan beberapa PDF menjadi satu file.' },
   'compress-pdf': { title: 'Kompres PDF', eyebrow: 'Segera hadir', description: 'Fitur kompres PDF belum dipindahkan ke React.' },
   'resize-image': { title: 'Ubah Ukuran Gambar', eyebrow: 'Segera hadir', description: 'Fitur resize gambar belum dipindahkan ke React.' },
   'pdf-word': { title: 'PDF ke Word', eyebrow: 'Segera hadir', description: 'Fitur PDF ke Word belum dipindahkan ke React.' },
@@ -122,6 +124,16 @@ export default function App() {
     if (activePage === 'image') {
       return (
         <ImageToPdfPage
+          isEngineReady={engineStatus === 'ready'}
+          engineStatus={engineStatus}
+          settings={settings}
+          onJobStateChange={handlePdfJobStateChange}
+        />
+      );
+    }
+    if (activePage === 'merge-pdf') {
+      return (
+        <MergePdfPage
           isEngineReady={engineStatus === 'ready'}
           engineStatus={engineStatus}
           settings={settings}

@@ -149,6 +149,7 @@ def _app_info() -> dict[str, Any]:
             "start_pdf_to_jpg",
             "start_image_to_pdf",
             "start_image_conversion",
+            "start_merge_pdf",
             "cancel_job",
             "get_job_status",
             "get_settings",
@@ -488,6 +489,8 @@ class EngineRuntime:
             return self._start_image_to_pdf(request_id, body)
         if action == "start_image_conversion":
             return self._start_image_conversion(request_id, body)
+        if action == "start_merge_pdf":
+            return self._start_merge_pdf(request_id, body)
         if action == "cancel_job":
             return self._cancel_job(request_id, body)
         if action == "get_job_status":
@@ -696,6 +699,70 @@ class EngineRuntime:
 
         return _ok(request_id, {"job_id": job.job_id, "status": job.status.value})
 
+    def _start_merge_pdf(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+        job_id = str(payload.get("job_id") or uuid.uuid4())
+        raw_files = payload.get("files")
+        if not isinstance(raw_files, list) or len(raw_files) < 2:
+            return _error(request_id, "Pilih minimal dua file PDF untuk digabungkan.", "INVALID_PAYLOAD")
+        if len(raw_files) > 999:
+            return _error(request_id, "Maksimal 999 file PDF dalam satu proses merge.", "TOO_MANY_FILES")
+
+        output_directory = str(payload.get("output_directory") or "").strip()
+        if not output_directory:
+            return _error(request_id, "Pilih folder hasil terlebih dahulu.", "MISSING_OUTPUT_DIRECTORY")
+
+        paths: list[Path] = []
+        file_ids: dict[str, str] = {}
+        total_pages = 0
+        for item in raw_files:
+            if not isinstance(item, dict):
+                continue
+            path = Path(str(item.get("path") or ""))
+            if not str(path):
+                continue
+            paths.append(path)
+            file_ids[path.expanduser().resolve().name] = str(item.get("file_id") or "")
+            try:
+                inspected = _inspect_pdf(path)
+                total_pages += int(inspected.get("page_count") or 0)
+            except Exception:
+                pass
+        if len(paths) < 2:
+            return _error(request_id, "Pilih minimal dua file PDF valid untuk digabungkan.", "NO_INPUT_FILES")
+
+        output_filename = str(payload.get("output_filename") or "gabungan.pdf")
+        open_after_finish = bool(payload.get("open_output_after_finish", False))
+
+        _elog(
+            f"MERGE_PDF_START job_id={job_id} files={len(paths)} "
+            f"output_dir={output_directory!r} output_filename={output_filename!r}"
+        )
+
+        try:
+            job = self._manager.create_job(
+                ToolType.MERGE_PDF,
+                paths,
+                output_directory,
+                job_id=job_id,
+                output_name=output_filename,
+                performance_mode=_performance_mode(payload.get("performance_mode")),
+            )
+            self._job_meta[job.job_id] = {
+                "total_pages": total_pages,
+                "open_after_finish": open_after_finish,
+                "file_ids": file_ids,
+            }
+            self._manager.start_job(job.job_id)
+            _elog(f"MERGE_PDF_JOB_STARTED job_id={job.job_id} status={job.status.value}")
+        except AppError as exc:
+            _elog(f"MERGE_PDF_START_FAILED job_id={job_id} error={exc}")
+            return _error(request_id, str(exc), "JOB_START_FAILED")
+        except Exception as exc:
+            _elog(f"MERGE_PDF_START_FAILED job_id={job_id} error={exc}")
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
+            return _error(request_id, f"Tidak dapat memulai merge PDF: {exc}", "JOB_START_FAILED")
+
+        return _ok(request_id, {"job_id": job.job_id, "status": job.status.value})
     def _start_pdf_to_jpg(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
         job_id = str(payload.get("job_id") or uuid.uuid4())
         raw_files = payload.get("files")

@@ -61,6 +61,16 @@ pub struct StartImageToPdfPayload {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct StartMergePdfPayload {
+    job_id: String,
+    files: Vec<PdfInputFile>,
+    output_directory: String,
+    output_filename: String,
+    open_output_after_finish: bool,
+    performance_mode: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct JobPayload {
     job_id: String,
 }
@@ -229,6 +239,19 @@ pub async fn start_pdf_to_jpg(
 ) -> Result<Value, String> {
     let job_id = payload.job_id.clone();
     let response = manager.request("start_pdf_to_jpg", json!(payload)).await?;
+    if response.get("ok").and_then(Value::as_bool) == Some(true) {
+        manager.track_active_job(job_id);
+    }
+    Ok(response)
+}
+
+#[tauri::command]
+pub async fn start_merge_pdf(
+    manager: State<'_, SidecarManager>,
+    payload: StartMergePdfPayload,
+) -> Result<Value, String> {
+    let job_id = payload.job_id.clone();
+    let response = manager.request("start_merge_pdf", json!(payload)).await?;
     if response.get("ok").and_then(Value::as_bool) == Some(true) {
         manager.track_active_job(job_id);
     }

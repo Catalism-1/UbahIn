@@ -147,6 +147,7 @@ fn main() {
             commands::start_image_to_pdf,
             commands::pick_output_directory,
             commands::start_pdf_to_jpg,
+            commands::start_merge_pdf,
             commands::cancel_pdf_to_jpg_job,
             commands::open_output_directory,
             commands::get_job_status,
