@@ -1,7 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Ubahin",
-  "version": "0.1.1",
+  "mainBinaryName": "Ubahin",
+  "version": "0.1.2",
   "identifier": "com.catalism.ubahin",
   "build": {
     "beforeDevCommand": "npm run dev:frontend",

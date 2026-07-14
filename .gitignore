@@ -33,6 +33,7 @@ LocalAppData/
 *.egg-info/
 desktop-tauri/dist/
 desktop-tauri/node_modules/
+desktop-tauri/src-tauri/gen/
 engine-python/dist/
 engine-python/build/
 engine-python/*.spec

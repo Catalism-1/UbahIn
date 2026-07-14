@@ -16,20 +16,23 @@ if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 if exist "%ENGINE_NAME%.spec" del /q "%ENGINE_NAME%.spec"
 
+rem Pakai --console agar stdin/stdout JSON Lines tetap aktif.
+rem Tauri shell spawn menyembunyikan console Windows dengan CREATE_NO_WINDOW.
 "%PYTHON_EXE%" -m PyInstaller ^
   --noconfirm ^
   --clean ^
-  --onedir ^
+  --onefile ^
   --console ^
   --name "%ENGINE_NAME%" ^
   --paths ..\src ^
   --collect-all pymupdf ^
   --collect-all PIL ^
+  --collect-all pillow_heif ^
   --hidden-import pypdf ^
   engine_main.py
 if errorlevel 1 exit /b 1
 
-set "EXE_PATH=%CD%\dist\%ENGINE_NAME%\%ENGINE_NAME%.exe"
+set "EXE_PATH=%CD%\dist\%ENGINE_NAME%.exe"
 if not exist "%EXE_PATH%" (
   echo Engine executable tidak ditemukan: %EXE_PATH%
   exit /b 1

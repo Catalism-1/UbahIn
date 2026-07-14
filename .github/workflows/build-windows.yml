@@ -2,9 +2,12 @@ name: Build Windows
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - "v*"
+
+# NOTE: this workflow builds the legacy PyInstaller/CustomTkinter app
+# (build_portable.bat / build_installer.bat, now archived under
+# legacy/pywebview-or-tkinter-ui-backup/). It no longer runs automatically
+# on tag push so it can't ship the wrong binary under a Tauri release tag.
+# Trigger manually only if you need to rebuild the legacy app.
 
 permissions:
   contents: write
@@ -40,9 +43,9 @@ jobs:
       - name: Test
         run: .\run_tests.bat
       - name: Build portable
-        run: .\build_portable.bat
+        run: .\legacy\pywebview-or-tkinter-ui-backup\build_portable.bat
       - name: Build installer
-        run: .\build_installer.bat
+        run: .\legacy\pywebview-or-tkinter-ui-backup\build_installer.bat
       - name: Zip portable
         run: Compress-Archive -Path dist\Ubahin\* -DestinationPath dist\Ubahin-Portable.zip -Force
       - name: Upload portable

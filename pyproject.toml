@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ubahin"
-version = "0.1.1"
+version = "0.1.2"
 description = "Mesin konversi file lokal untuk aplikasi Ubahin"
 requires-python = ">=3.11"
 dependencies = [

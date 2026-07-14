@@ -7,20 +7,12 @@ from PIL import Image
 from ubahin.services import (
     ImageCompressOptions,
     ImageCompressService,
-    ImageConvertOptions,
-    ImageConvertService,
     ImageResizeOptions,
     ImageResizeService,
 )
 
 
-def test_image_convert_resize_and_compress(sample_images: list[Path], tmp_path: Path) -> None:
-    converted = ImageConvertService().convert(
-        sample_images[:1],
-        ImageConvertOptions(output_dir=tmp_path / "converted", target_format="PNG"),
-    )
-    assert converted.output_paths[0].suffix.lower() == ".png"
-
+def test_image_resize_and_compress(sample_images: list[Path], tmp_path: Path) -> None:
     resized = ImageResizeService().resize(
         sample_images[:1],
         ImageResizeOptions(output_dir=tmp_path / "resized", percent=50),

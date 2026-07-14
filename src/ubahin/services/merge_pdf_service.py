@@ -7,7 +7,7 @@ from typing import Callable
 from pypdf import PdfReader, PdfWriter
 
 from ubahin.core.cancellation import CancellationToken
-from ubahin.core.models import FileResult, ServiceResult
+from ubahin.core.models import AppError, FileResult, ServiceResult
 from ubahin.core.progress import ProgressInfo
 from ubahin.core.validation import validate_output_dir, validate_pdf_batch
 from ubahin.utils import atomic_temp_path, finalize_atomic_write, remove_temp_file, unique_file
@@ -28,6 +28,8 @@ class MergePdfService:
         on_progress: Callable[[ProgressInfo], None] | None = None,
     ) -> ServiceResult:
         cancellation = cancellation or CancellationToken()
+        if len(pdf_files) < 2:
+            raise AppError("Pilih minimal dua file PDF untuk digabungkan.")
         validate_output_dir(options.output_dir)
         total_pages = validate_pdf_batch(pdf_files, max_files=999)
         writer = PdfWriter()
@@ -51,17 +53,36 @@ class MergePdfService:
                             message="Menggabungkan PDF",
                         )
                     )
-        output_path = unique_file(options.output_dir, options.output_name)
+        output_name = options.output_name.strip() or "gabungan.pdf"
+        if Path(output_name).suffix.lower() != ".pdf":
+            output_name = f"{Path(output_name).stem or 'gabungan'}.pdf"
+        output_path = unique_file(options.output_dir, output_name)
         temp_path = atomic_temp_path(output_path)
         try:
             with temp_path.open("wb") as handle:
                 writer.write(handle)
             finalize_atomic_write(temp_path, output_path)
+            if not output_path.exists() or output_path.stat().st_size <= 0:
+                raise AppError("File hasil merge tidak terbentuk.")
+            merged_pages = len(PdfReader(str(output_path)).pages)
+            if merged_pages != total_pages:
+                raise AppError("Validasi hasil merge gagal: jumlah halaman tidak sesuai.")
         except Exception:
             remove_temp_file(temp_path)
+            remove_temp_file(output_path)
             raise
         return ServiceResult(
             output_paths=[output_path],
-            file_results=[FileResult(input_path=pdf_files[0], output_paths=[output_path], output_size=output_path.stat().st_size)],
+            file_results=[
+                FileResult(
+                    input_path=pdf_path,
+                    output_paths=[output_path],
+                    output_size=output_path.stat().st_size,
+                )
+                for pdf_path in pdf_files
+            ],
             message="PDF berhasil digabungkan.",
+            total_input_files=len(pdf_files),
+            processed_files=len(pdf_files),
+            completed_files=len(pdf_files),
         )
