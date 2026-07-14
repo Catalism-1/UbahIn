@@ -1,10 +1,13 @@
 name: Release Windows
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
+
+# NOTE: this workflow builds the legacy PyInstaller/CustomTkinter app
+# (build_release_assets.bat, now archived under
+# legacy/pywebview-or-tkinter-ui-backup/). It no longer runs automatically
+# on tag push so it can't ship the wrong binary under a Tauri release tag.
+# Trigger manually only if you need to rebuild the legacy app.
 
 jobs:
   release:
@@ -20,7 +23,7 @@ jobs:
           python-version: '3.11'
           
       - name: Build and Test Assets
-        run: .\build_release_assets.bat
+        run: .\legacy\pywebview-or-tkinter-ui-backup\build_release_assets.bat
         
       - name: Set Prerelease Status
         id: check_prerelease
