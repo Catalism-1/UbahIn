@@ -69,7 +69,9 @@ def validate_image_file(path: Path) -> None:
         raise AppError(f"Gambar rusak atau tidak dapat dibaca: {path.name}") from exc
 
 
-def validate_image_batch(paths: list[Path]) -> None:
+def validate_image_batch(paths: list[Path], max_files: int | None = None) -> None:
+    if max_files is not None and len(paths) > max_files:
+        raise AppError(f"Maksimal {max_files} gambar dalam satu antrean.")
     for path in paths:
         validate_image_file(path)
 

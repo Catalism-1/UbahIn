@@ -74,7 +74,12 @@ from ubahin.core import JobManager, ToolType
 from ubahin.core.job import Job
 from ubahin.core.models import AppError
 from ubahin.core.progress import ProgressInfo
-from ubahin.services import HistoryService, ImageConversionService, SettingsService
+from ubahin.services import (
+    MAX_IMAGE_TO_PDF_FILES,
+    HistoryService,
+    ImageConversionService,
+    SettingsService,
+)
 from ubahin.services.settings_service import AppSettings
 from ubahin.utils import open_in_file_manager
 
@@ -323,7 +328,9 @@ def _inspect_image(path: Path) -> dict[str, Any]:
         base["status"] = "failed"
         base["error"] = error
         base["error_code"] = code
-        base["format"] = None
+        # Fallback ke ekstensi jika format gagal dibaca oleh Pillow
+        fallback_format = resolved.suffix.lstrip(".").upper() if resolved.suffix else None
+        base["format"] = fallback_format
         base["width"] = None
         base["height"] = None
         base["thumbnail_data_uri"] = None
@@ -524,7 +531,7 @@ class EngineRuntime:
         paths = payload.get("paths")
         if not isinstance(paths, list):
             return _error(request_id, "Payload paths harus berupa daftar file.", "INVALID_PAYLOAD")
-        results = [_inspect_image(Path(str(path))) for path in paths[:50]]
+        results = [_inspect_image(Path(str(path))) for path in paths[:MAX_IMAGE_TO_PDF_FILES]]
         return _ok(request_id, {"files": results})
 
     def _inspect_image_conversion_files(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
@@ -570,8 +577,12 @@ class EngineRuntime:
         raw_files = payload.get("files")
         if not isinstance(raw_files, list) or not raw_files:
             return _error(request_id, "Pilih minimal satu file gambar.", "INVALID_PAYLOAD")
-        if len(raw_files) > 50:
-            return _error(request_id, "Maksimal 50 gambar dalam satu antrean.", "TOO_MANY_FILES")
+        if len(raw_files) > MAX_IMAGE_TO_PDF_FILES:
+            return _error(
+                request_id,
+                f"Maksimal {MAX_IMAGE_TO_PDF_FILES} gambar dalam satu antrean.",
+                "TOO_MANY_FILES",
+            )
 
         output_directory = str(payload.get("output_directory") or "").strip()
         if not output_directory:
@@ -763,6 +774,7 @@ class EngineRuntime:
             return _error(request_id, f"Tidak dapat memulai merge PDF: {exc}", "JOB_START_FAILED")
 
         return _ok(request_id, {"job_id": job.job_id, "status": job.status.value})
+
     def _start_pdf_to_jpg(self, request_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
         job_id = str(payload.get("job_id") or uuid.uuid4())
         raw_files = payload.get("files")
@@ -1082,22 +1094,25 @@ class EngineRuntime:
             emit_file_events(job)
             payload = result_payload(job)
 
-            # Safety gate for IMAGE_TO_PDF: if no valid PDF output, escalate to job_failed
-            if tool_type == "image_to_pdf":
-                output_pdf_path = payload.get("output_pdf_path", "")
-                output_size = payload.get("output_size_bytes", 0)
-                if not output_pdf_path or not output_size:
-                    error_msg = "PDF belum berhasil dibuat. Silakan buka log untuk melihat detail."
-                    _elog("ENGINE_EVENT_SENT job_failed")
-                    # Inject error and emit job_failed
-                    payload["status"] = "failed"
-                    payload["errors"] = [error_msg] + list(payload.get("errors") or [])
-                    self.write_message(_event("job_failed", job.job_id, payload))
-                    return
+            # Safety gate: completed conversions must expose at least one valid output.
+            # A skipped/no-op job (for example, compress PDF that would grow the file)
+            # is terminal but intentionally has no output file.
+            output_size = payload.get("output_size_bytes", 0)
+            total_outputs = payload.get("total_outputs", 0)
+            skipped_no_output = (
+                payload.get("skipped_files", 0) > 0
+                and payload.get("successful_files", 0) == 0
+                and not payload.get("errors")
+            )
+            if (not total_outputs or not output_size) and not skipped_no_output:
+                error_msg = "Konversi gagal menghasilkan file yang valid. Silakan periksa file input atau log."
+                _elog("ENGINE_EVENT_SENT job_failed (safety gate)")
+                payload["status"] = "failed"
+                payload["errors"] = [error_msg] + list(payload.get("errors") or [])
+                self.write_message(_event("job_failed", job.job_id, payload))
+                return
 
-                _elog("ENGINE_EVENT_SENT job_completed")
-            else:
-                _elog("ENGINE_EVENT_SENT job_completed")
+            _elog("ENGINE_EVENT_SENT job_completed")
 
             self.write_message(_event("job_completed", job.job_id, payload))
 

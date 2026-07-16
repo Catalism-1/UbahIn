@@ -17,6 +17,7 @@ from ubahin.core.validation import (
     validate_pdf_file,
 )
 from ubahin.services import (
+    MAX_IMAGE_TO_PDF_FILES,
     CompressPdfOptions,
     CompressPdfService,
     HistoryService,
@@ -109,7 +110,9 @@ class JobManager:
             if len(job.input_files) != 1:
                 raise AppError("Fitur ini membutuhkan tepat satu file PDF.")
             validate_pdf_file(job.input_files[0])
-        elif job.tool_type in {ToolType.IMAGE_TO_PDF, ToolType.IMAGE_RESIZE, ToolType.IMAGE_COMPRESS}:
+        elif job.tool_type == ToolType.IMAGE_TO_PDF:
+            validate_image_batch(job.input_files, max_files=MAX_IMAGE_TO_PDF_FILES)
+        elif job.tool_type in {ToolType.IMAGE_RESIZE, ToolType.IMAGE_COMPRESS}:
             validate_image_batch(job.input_files)
         elif job.tool_type == ToolType.IMAGE_CONVERT:
             validate_conversion_input_files(job.input_files)
@@ -209,10 +212,20 @@ class JobManager:
             if job.cancellation_token.is_cancelled():
                 job.status = JobStatus.CANCELLED
                 self._emit("on_job_cancelled", job)
-            elif result.errors and not result.output_paths:
-                job.status = JobStatus.FAILED
-                job.errors.extend(result.errors)
-                self._emit("on_job_failed", job)
+            elif not result.output_paths:
+                if result.skipped_files > 0 and result.successful_files == 0 and not result.errors:
+                    job.status = JobStatus.COMPLETED_WITH_WARNINGS
+                    warning = result.message or "Proses selesai tanpa membuat file hasil baru."
+                    if warning:
+                        job.warnings.append(warning)
+                    job.warnings.extend(result.warnings)
+                    self._emit("on_job_completed", job)
+                else:
+                    job.status = JobStatus.FAILED
+                    job.errors.extend(result.errors)
+                    if not job.errors:
+                        job.errors.append("Proses gagal: Tidak ada file hasil yang terbentuk.")
+                    self._emit("on_job_failed", job)
             elif result.errors:
                 job.status = JobStatus.COMPLETED_WITH_WARNINGS
                 job.warnings.extend(result.warnings or result.errors)

@@ -45,7 +45,7 @@ p {
 }
 
 ::selection {
-  background: rgba(124, 154, 126, 0.22);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .app-modal-root {
