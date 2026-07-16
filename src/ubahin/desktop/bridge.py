@@ -35,7 +35,7 @@ except Exception:  # pragma: no cover - PyMuPDF should always be available
     fitz = None  # type: ignore
 
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 LOGGER = logging.getLogger("ubahin.bridge")
 
 

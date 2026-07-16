@@ -17,7 +17,7 @@ tanpa upload file ke server mana pun.
 - **Desktop app modern** — dibangun dengan Tauri 2, ringan dan native di Windows.
 - **Engine Python** — proses konversi PDF/gambar ditangani oleh engine Python yang matang dan teruji.
 
-## Fitur (v0.1.2)
+## Fitur (v0.1.3)
 
 - PDF ke JPG
 - Gambar ke PDF
@@ -114,7 +114,7 @@ cmd /c npm run build
 
 ## Status Release
 
-`v0.1.2`
+`v0.1.3`
 
 ## Screenshot
 
@@ -122,7 +122,7 @@ Coming soon.
 
 ## Roadmap
 
-Lihat bagian [Coming Soon](#coming-soon) di atas untuk fitur yang direncanakan setelah v0.1.2.
+Lihat bagian [Coming Soon](#coming-soon) di atas untuk fitur yang direncanakan setelah v0.1.3.
 
 ## Cara Melaporkan Bug
 

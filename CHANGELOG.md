@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.3
+
+### Added
+- Gambar ke PDF kini mendukung hingga 100 gambar dalam satu antrean (naik dari batas sebelumnya).
+
+### Fixed
+- Batas 100 gambar disinkronkan di seluruh jalur validasi: UI React, engine (pemeriksaan file dan validasi start job), `JobManager`, dan `ImageToPdfService`, sehingga tidak ada lagi jalur yang diam-diam memotong daftar file atau membiarkan file lolos tanpa validasi.
+- File ke-101 dan seterusnya ditolak dengan pesan error yang jelas ("Maksimal 100 gambar dalam satu antrean.") sebelum job dibuat.
+- Dark mode: hero banner, area upload, kartu, border, dan badge status error pada halaman Beranda, PDF ke JPG, Gambar ke PDF, Ubah Format Gambar, dan Gabungkan PDF tidak lagi memakai gradient/warna terang yang hardcode saat dark mode aktif, sehingga kontras teks dan elemen UI lebih konsisten.
+
+### Improved
+- Regression test baru membuktikan 100 gambar diterima dan menghasilkan PDF 100 halaman, serta 101 gambar ditolak dengan pesan error yang jelas di level service maupun engine.
+
 ## 0.1.2
 
 ### Added
