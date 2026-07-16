@@ -9,7 +9,7 @@
 
 .hero-panel {
   background:
-    linear-gradient(135deg, rgba(207, 232, 213, 0.72), rgba(216, 233, 247, 0.68)),
+    linear-gradient(135deg, color-mix(in srgb, var(--sage) 72%, transparent), color-mix(in srgb, var(--blue) 68%, transparent)),
     var(--surface);
   border: 1px solid var(--border);
   border-radius: 22px;

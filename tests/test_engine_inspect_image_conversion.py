@@ -86,7 +86,7 @@ def test_empty_file_returns_specific_error_code(runtime, tmp_path: Path) -> None
 
     assert file_info["status"] == "failed"
     assert file_info["error_code"] == "FILE_EMPTY"
-    assert file_info["format"] is None
+    assert file_info["format"] == "PNG"
     assert file_info["thumbnail_data_uri"] is None
     assert "kosong" in file_info["error"].lower()
 

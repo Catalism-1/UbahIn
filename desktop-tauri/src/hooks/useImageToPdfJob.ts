@@ -22,7 +22,8 @@ import type {
   JobStatus,
 } from '../pages/ImageToPdfPage/types';
 
-const MAX_FILES = 50;
+export const MAX_IMAGE_TO_PDF_FILES = 100;
+const MAX_FILES = MAX_IMAGE_TO_PDF_FILES;
 
 export const DEFAULT_IMAGE_JOB_DEFAULTS: ImageToPdfOptions = {
   outputDirectory: '',
@@ -100,7 +101,7 @@ export function useImageToPdfJob(isEngineReady: boolean, defaults: ImageToPdfOpt
       const allowedPaths = uniquePaths.slice(0, Math.max(0, MAX_FILES - files.length));
 
       if (allowedPaths.length === 0) {
-        addToast('Tidak ada gambar baru ditambahkan.', 'warning', 'File duplikat atau antrean sudah mencapai batas 50 gambar.');
+        addToast('Tidak ada gambar baru ditambahkan.', 'warning', `File duplikat atau antrean sudah mencapai batas ${MAX_FILES} gambar.`);
         return;
       }
 

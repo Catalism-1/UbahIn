@@ -40,6 +40,9 @@ export function useImageConversionJob(): UseImageConversionJobResult {
     const [activeJobId, setActiveJobId] = useState<string | null>(null);
     const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
+    const activeJobIdRef = useRef<string | null>(activeJobId);
+    useEffect(() => { activeJobIdRef.current = activeJobId; }, [activeJobId]);
+
     // Make queue available to callbacks without dependency arrays
     const queueRef = useRef<ImageQueueItem[]>(queue);
     useEffect(() => { queueRef.current = queue; }, [queue]);
@@ -126,17 +129,16 @@ export function useImageConversionJob(): UseImageConversionJobResult {
             }));
         } catch (error: any) {
             // Transport-level failure (engine down, malformed response).
-            // Tetap tampilkan tiap file dengan pesan eksplisit alih-alih 'Gagal diinspeksi' generik.
             const message = error?.message || 'Tidak ada respons dari engine.';
             console.error('[image-convert] IMAGE_INSPECT_TRANSPORT_FAILED ' + message);
-            addToast(`Gagal memeriksa file: ${message}`, 'error');
+            addToast(`Gagal memeriksa beberapa file: ${message}`, 'error');
             setQueue(prev => prev.map(item => {
                 const isNew = newItems.find(ni => ni.id === item.id);
                 if (isNew) {
                     return {
                         ...item,
                         status: 'failed',
-                        error: 'Gagal membaca informasi gambar. Buka log untuk detail.',
+                        error: `Transport error: ${message}`,
                     };
                 }
                 return item;
@@ -176,6 +178,7 @@ export function useImageConversionJob(): UseImageConversionJobResult {
 
         const readyIds = new Set(readyItems.map(item => item.id));
         const jobId = generateId();
+        activeJobIdRef.current = jobId;
         setActiveJobId(jobId);
         setIsConverting(true);
         setShowSuccessDialog(false);
@@ -214,6 +217,7 @@ export function useImageConversionJob(): UseImageConversionJobResult {
             addToast(`Gagal memulai konversi: ${error.message || 'Unknown error'}`, 'error');
             setIsConverting(false);
             setActiveJobId(null);
+            activeJobIdRef.current = null;
         }
     }, [addToast]);
 
@@ -230,25 +234,32 @@ export function useImageConversionJob(): UseImageConversionJobResult {
     const resetJobState = useCallback(() => {
         setIsConverting(false);
         setActiveJobId(null);
+        activeJobIdRef.current = null;
         setShowSuccessDialog(false);
     }, []);
 
     // Engine Events Listeners
-    useTauriEvent('job_started', (data: any) => {
-        if (data.job_id === activeJobId) {
-            setQueue(prev => prev.map(item => ({ ...item, status: 'processing', progress: 0 })));
+    useTauriEvent('engine://job-started', (data: any) => {
+        if (data.job_id === activeJobIdRef.current) {
+            setQueue(prev => prev.map(item =>
+                item.status === 'ready' ? { ...item, status: 'processing', progress: 0 } : item
+            ));
         }
     });
 
-    useTauriEvent('progress', (data: any) => {
-        if (data.job_id === activeJobId) {
-            const currentItemIdx = data.current_item - 1;
+    useTauriEvent('engine://progress', (data: any) => {
+        if (data.job_id === activeJobIdRef.current) {
             setQueue(prev => {
                 const newQueue = [...prev];
-                if (currentItemIdx >= 0 && currentItemIdx < newQueue.length) {
-                    newQueue[currentItemIdx] = {
-                        ...newQueue[currentItemIdx],
-                        progress: data.percentage,
+                const idx = newQueue.findIndex(q => q.filename === data.current_file);
+                if (idx !== -1 && newQueue[idx].status !== 'failed') {
+                    const progressValue =
+                        typeof data.file_percent === 'number' && data.file_percent > 0
+                            ? data.file_percent
+                            : Number(data.overall_percent ?? data.percentage ?? 0);
+                    newQueue[idx] = {
+                        ...newQueue[idx],
+                        progress: progressValue,
                         status: 'processing'
                     };
                 }
@@ -257,11 +268,12 @@ export function useImageConversionJob(): UseImageConversionJobResult {
         }
     });
 
-    useTauriEvent('file_completed', (data: any) => {
-        if (data.job_id === activeJobId) {
+    useTauriEvent('engine://file-completed', (data: any) => {
+        if (data.job_id === activeJobIdRef.current) {
             setQueue(prev => {
                 const newQueue = [...prev];
-                const idx = newQueue.findIndex(q => q.path === data.input_path);
+                const dataPath = data.path || data.input_path || '';
+                const idx = newQueue.findIndex(q => q.path.toLowerCase() === dataPath.toLowerCase() || q.fileId === data.file_id);
                 if (idx !== -1) {
                     newQueue[idx] = {
                         ...newQueue[idx],
@@ -275,26 +287,52 @@ export function useImageConversionJob(): UseImageConversionJobResult {
         }
     });
 
-    useTauriEvent('job_completed', (data: any) => {
-        if (data.job_id === activeJobId) {
+    useTauriEvent('engine://warning', (data: any) => {
+        if (data.job_id === activeJobIdRef.current) {
+            setQueue(prev => {
+                const newQueue = [...prev];
+                const dataPath = data.path || data.input_path || '';
+                const idx = newQueue.findIndex(q => q.path.toLowerCase() === dataPath.toLowerCase() || q.fileId === data.file_id);
+                if (idx !== -1) {
+                    newQueue[idx] = {
+                        ...newQueue[idx],
+                        status: 'failed',
+                        progress: 100,
+                        error: data.message || data.error || 'Gagal'
+                    };
+                }
+                return newQueue;
+            });
+        }
+    });
+
+    useTauriEvent('engine://job-completed', (data: any) => {
+        if (data.job_id === activeJobIdRef.current) {
             setIsConverting(false);
             setShowSuccessDialog(true);
+            setActiveJobId(null);
+            activeJobIdRef.current = null;
         }
     });
 
-    useTauriEvent('job_failed', (data: any) => {
-        if (data.job_id === activeJobId) {
+    useTauriEvent('engine://job-failed', (data: any) => {
+        if (data.job_id === activeJobIdRef.current) {
             setIsConverting(false);
-            addToast('Konversi gagal.', 'error');
+            const errMsg = data.errors?.[0] || 'Konversi gagal.';
+            addToast(errMsg, 'error');
             setQueue(prev => prev.map(item => item.status === 'completed' ? item : { ...item, status: 'failed', error: 'Job gagal' }));
+            setActiveJobId(null);
+            activeJobIdRef.current = null;
         }
     });
 
-    useTauriEvent('job_cancelled', (data: any) => {
-        if (data.job_id === activeJobId) {
+    useTauriEvent('engine://job-cancelled', (data: any) => {
+        if (data.job_id === activeJobIdRef.current) {
             setIsConverting(false);
             addToast('Konversi dibatalkan.', 'warning');
             setQueue(prev => prev.map(item => item.status === 'processing' ? { ...item, status: 'ready', progress: 0 } : item));
+            setActiveJobId(null);
+            activeJobIdRef.current = null;
         }
     });
 

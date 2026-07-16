@@ -9,7 +9,7 @@
 
 .hero {
   background:
-    linear-gradient(135deg, rgba(216, 233, 247, 0.74), rgba(207, 232, 213, 0.7)),
+    linear-gradient(135deg, color-mix(in srgb, var(--blue) 74%, transparent), color-mix(in srgb, var(--sage) 70%, transparent)),
     var(--surface);
   border: 1px solid var(--border);
   border-radius: 22px;
@@ -154,7 +154,7 @@
 .uploadZone {
   align-items: center;
   background:
-    linear-gradient(135deg, rgba(220, 214, 247, 0.26), rgba(216, 233, 247, 0.36)),
+    linear-gradient(135deg, color-mix(in srgb, var(--lavender) 26%, transparent), color-mix(in srgb, var(--blue) 36%, transparent)),
     var(--surface-2);
   border: 1px dashed var(--accent);
   border-radius: 18px;
@@ -220,7 +220,7 @@
 }
 
 .fileFailed {
-  border-color: rgba(212, 123, 123, 0.42);
+  border-color: color-mix(in srgb, var(--error) 42%, transparent);
 }
 
 .fileMain {
@@ -420,7 +420,7 @@
 }
 
 .progressCard {
-  border-color: rgba(124, 154, 126, 0.34);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
 }
 
 .progressBlock {
@@ -472,7 +472,7 @@
 }
 
 .engineNotice {
-  background: rgba(246, 217, 199, 0.42);
+  background: color-mix(in srgb, var(--peach) 42%, transparent);
   border: 1px solid var(--peach);
   border-radius: 15px;
   color: var(--text);
@@ -531,8 +531,8 @@
 }
 
 .failedList {
-  background: rgba(212, 123, 123, 0.1);
-  border: 1px solid rgba(212, 123, 123, 0.28);
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--error) 28%, transparent);
   border-radius: 13px;
   display: grid;
   gap: 6px;

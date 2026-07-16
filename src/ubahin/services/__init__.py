@@ -4,7 +4,7 @@ from .history_service import HistoryService
 from .image_compress_service import ImageCompressOptions, ImageCompressService
 from .image_conversion_service import ImageConversionOptions, ImageConversionService
 from .image_resize_service import ImageResizeOptions, ImageResizeService
-from .image_to_pdf_service import ImageToPdfOptions, ImageToPdfService
+from .image_to_pdf_service import MAX_IMAGE_TO_PDF_FILES, ImageToPdfOptions, ImageToPdfService
 from .merge_pdf_service import MergePdfOptions, MergePdfService
 from .pdf_to_image_service import PdfToImageOptions, PdfToImageService
 from .settings_service import AppSettings, SettingsService
@@ -25,6 +25,7 @@ __all__ = [
     "ImageResizeService",
     "ImageToPdfOptions",
     "ImageToPdfService",
+    "MAX_IMAGE_TO_PDF_FILES",
     "MergePdfOptions",
     "MergePdfService",
     "PdfToImageOptions",
