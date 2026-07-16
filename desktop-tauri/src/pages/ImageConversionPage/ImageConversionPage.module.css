@@ -9,7 +9,7 @@
 
 .hero {
   background:
-    linear-gradient(135deg, rgba(246, 217, 199, 0.7), rgba(216, 233, 247, 0.7)),
+    linear-gradient(135deg, color-mix(in srgb, var(--peach) 70%, transparent), color-mix(in srgb, var(--blue) 70%, transparent)),
     var(--surface);
   border: 1px solid var(--border);
   border-radius: 22px;
@@ -113,7 +113,7 @@
 .uploadZone {
   align-items: center;
   background:
-    linear-gradient(135deg, rgba(246, 217, 199, 0.26), rgba(216, 233, 247, 0.36)),
+    linear-gradient(135deg, color-mix(in srgb, var(--peach) 26%, transparent), color-mix(in srgb, var(--blue) 36%, transparent)),
     var(--surface-2);
   border: 1px dashed var(--accent);
   border-radius: 18px;
@@ -132,7 +132,7 @@
 .uploadZone:hover:not(:disabled) {
   border-color: var(--accent-hover);
   background:
-    linear-gradient(135deg, rgba(246, 217, 199, 0.36), rgba(216, 233, 247, 0.46)),
+    linear-gradient(135deg, color-mix(in srgb, var(--peach) 36%, transparent), color-mix(in srgb, var(--blue) 46%, transparent)),
     var(--surface);
 }
 
@@ -229,7 +229,7 @@
 }
 
 .fileFailed {
-  border-color: rgba(212, 123, 123, 0.42);
+  border-color: color-mix(in srgb, var(--error) 42%, transparent);
 }
 
 .thumbnailContainer {
@@ -307,7 +307,7 @@
 }
 
 .formatBadgeFailed {
-  background: rgba(212, 123, 123, 0.18) !important;
+  background: color-mix(in srgb, var(--error) 18%, transparent) !important;
   color: var(--error) !important;
 }
 
@@ -329,8 +329,8 @@
 }
 
 .errorDetail {
-  background: rgba(212, 123, 123, 0.08);
-  border: 1px solid rgba(212, 123, 123, 0.25);
+  background: color-mix(in srgb, var(--error) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--error) 25%, transparent);
   border-radius: 10px;
   color: var(--text-2);
   display: grid;

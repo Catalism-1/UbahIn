@@ -26,6 +26,8 @@ QUALITY_PRESETS: dict[str, dict[str, object]] = {
 MIN_QUALITY = 50
 MAX_QUALITY = 95
 
+MAX_IMAGE_TO_PDF_FILES = 100
+
 
 def _clamp_quality(value: int) -> int:
     return max(MIN_QUALITY, min(MAX_QUALITY, value))
@@ -81,7 +83,7 @@ class ImageToPdfService:
         cancellation = cancellation or CancellationToken()
         options.output_dir = Path(options.output_dir).expanduser().resolve()
         validate_output_dir(options.output_dir)
-        validate_image_batch(image_files)
+        validate_image_batch(image_files, max_files=MAX_IMAGE_TO_PDF_FILES)
 
         # Resolve quality
         jpeg_quality, optimize = _resolve_quality(

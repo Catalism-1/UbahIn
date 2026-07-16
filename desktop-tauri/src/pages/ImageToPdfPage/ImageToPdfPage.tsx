@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { Toast } from '../../components/common/Toast';
-import { useImageToPdfJob } from '../../hooks/useImageToPdfJob';
+import { MAX_IMAGE_TO_PDF_FILES, useImageToPdfJob } from '../../hooks/useImageToPdfJob';
 import type { EngineStatus } from '../../types/navigation';
 import type { AppSettings } from '../../types/settings';
 import type { ImageToPdfOptions } from './types';
@@ -135,7 +135,7 @@ export function ImageToPdfPage({ isEngineReady, engineStatus, settings, onJobSta
                   type="button"
                   className="secondary-button"
                   onClick={job.handlePickFiles}
-                  disabled={job.isBusy || job.files.length >= 50}
+                  disabled={job.isBusy || job.files.length >= MAX_IMAGE_TO_PDF_FILES}
                 >
                   Pilih Gambar
                 </button>

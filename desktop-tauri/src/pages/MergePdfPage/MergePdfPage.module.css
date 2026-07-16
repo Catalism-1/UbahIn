@@ -9,7 +9,7 @@
 
 .hero {
   background:
-    linear-gradient(135deg, rgba(220, 214, 247, 0.56), rgba(216, 233, 247, 0.48)),
+    linear-gradient(135deg, color-mix(in srgb, var(--lavender) 56%, transparent), color-mix(in srgb, var(--blue) 48%, transparent)),
     var(--surface);
   border: 1px solid var(--border);
   border-radius: 22px;
@@ -107,7 +107,7 @@
 .uploadZone {
   align-items: center;
   background:
-    linear-gradient(135deg, rgba(220, 214, 247, 0.24), rgba(216, 233, 247, 0.32)),
+    linear-gradient(135deg, color-mix(in srgb, var(--lavender) 24%, transparent), color-mix(in srgb, var(--blue) 32%, transparent)),
     var(--surface-2);
   border: 1px dashed var(--accent);
   border-radius: 18px;

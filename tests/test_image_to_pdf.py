@@ -6,8 +6,9 @@ import pytest
 from PIL import Image
 from pypdf import PdfReader
 
+from ubahin.core import AppError
 from ubahin.core.cancellation import CancellationToken
-from ubahin.services import ImageToPdfOptions, ImageToPdfService
+from ubahin.services import MAX_IMAGE_TO_PDF_FILES, ImageToPdfOptions, ImageToPdfService
 
 
 def test_image_to_pdf_basic(sample_images: list[Path], tmp_path: Path) -> None:
@@ -165,3 +166,41 @@ def test_image_to_pdf_clamping(sample_images: list[Path], tmp_path: Path) -> Non
         ImageToPdfOptions(output_dir=output, output_name="clamped_over.pdf", image_quality_preset="custom", jpeg_quality=120),
     )
     assert not res_over.errors
+
+
+def _make_images(directory: Path, count: int) -> list[Path]:
+    directory.mkdir(parents=True, exist_ok=True)
+    paths: list[Path] = []
+    for index in range(count):
+        path = directory / f"batch_{index:04d}.png"
+        Image.new("RGB", (12, 12), (index % 256, (index * 3) % 256, (index * 7) % 256)).save(path)
+        paths.append(path)
+    return paths
+
+
+def test_image_to_pdf_accepts_100_images_with_100_pages(tmp_path: Path) -> None:
+    images = _make_images(tmp_path / "images", MAX_IMAGE_TO_PDF_FILES)
+    output = tmp_path / "out"
+
+    result = ImageToPdfService().convert(
+        images,
+        ImageToPdfOptions(output_dir=output, output_name="hundred.pdf"),
+    )
+
+    assert not result.errors
+    assert len(result.output_paths) == 1
+    reader = PdfReader(str(result.output_paths[0]))
+    assert len(reader.pages) == MAX_IMAGE_TO_PDF_FILES
+
+
+def test_image_to_pdf_rejects_101_images(tmp_path: Path) -> None:
+    # Count check happens before per-file validation, so paths need not exist.
+    fake_paths = [tmp_path / f"fake_{index}.png" for index in range(MAX_IMAGE_TO_PDF_FILES + 1)]
+    output = tmp_path / "out"
+
+    with pytest.raises(AppError) as excinfo:
+        ImageToPdfService().convert(
+            fake_paths,
+            ImageToPdfOptions(output_dir=output, output_name="rejected.pdf"),
+        )
+    assert f"Maksimal {MAX_IMAGE_TO_PDF_FILES}" in str(excinfo.value)

@@ -97,6 +97,7 @@ export function usePdfToJpgJob(isEngineReady: boolean, defaults: PdfJobDefaults 
   const [options, setOptions] = useState<PdfToJpgOptions>(() => optionsFromDefaults(defaults));
   const [status, setStatus] = useState<JobStatus>('idle');
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const activeJobIdRef = useRef<string | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
   const [result, setResult] = useState<JobResult | null>(null);
   const [showResult, setShowResult] = useState(false);
@@ -210,12 +211,13 @@ export function usePdfToJpgJob(isEngineReady: boolean, defaults: PdfJobDefaults 
 
   const startJob = useCallback(async () => {
     if (!isEngineReady) {
-      addToast('Engine belum siap.', 'warning', 'Jalankan Pemeriksaan Engine terlebih dahulu.');
+      addToast('Engine belum siap.', 'warning', 'Tunggu proses penyiapan selesai atau buka Diagnostik untuk mencoba lagi.');
       return;
     }
     if (!canStart) return;
 
     const jobId = createJobId();
+    activeJobIdRef.current = jobId;
     setActiveJobId(jobId);
     setProgress(null);
     setResult(null);
@@ -227,6 +229,7 @@ export function usePdfToJpgJob(isEngineReady: boolean, defaults: PdfJobDefaults 
       await startPdfToJpg(jobId, validFiles, options);
       setStatus('processing');
     } catch (error) {
+      activeJobIdRef.current = null;
       setActiveJobId(null);
       setStatus('ready');
       addToast('Konversi tidak dapat dimulai.', 'error', error instanceof Error ? error.message : 'Silakan coba lagi.');
@@ -268,35 +271,37 @@ export function usePdfToJpgJob(isEngineReady: boolean, defaults: PdfJobDefaults 
     setProgress(null);
     setResult(null);
     setShowResult(false);
+    activeJobIdRef.current = null;
     setActiveJobId(null);
     setStatus('idle');
   }, []);
 
   const handleProgressEvent = useCallback((event: JobProgress) => {
-    if (event.job_id && activeJobId && event.job_id !== activeJobId) return;
+    if (!activeJobIdRef.current || event.job_id !== activeJobIdRef.current) return;
     setStatus('processing');
     setProgress(event);
     setFiles((current) =>
       current.map((file) => (file.filename === event.current_file && file.status === 'ready' ? { ...file, status: 'processing' } : file)),
     );
-  }, [activeJobId]);
+  }, []);
 
   const handleFileCompletedEvent = useCallback((event: FileCompletedEvent) => {
-    if (event.job_id && activeJobId && event.job_id !== activeJobId) return;
+    if (!activeJobIdRef.current || event.job_id !== activeJobIdRef.current) return;
     setFiles((current) => updateFileFromEvent(current, event, 'completed'));
-  }, [activeJobId]);
+  }, []);
 
   const handleWarningEvent = useCallback((event: WarningEvent) => {
-    if (event.job_id && activeJobId && event.job_id !== activeJobId) return;
+    if (!activeJobIdRef.current || event.job_id !== activeJobIdRef.current) return;
     setFiles((current) => updateFileFromEvent(current, event, 'failed'));
     addToast('Satu file gagal diproses.', 'warning', event.message);
-  }, [activeJobId, addToast]);
+  }, [addToast]);
 
   const finishJob = useCallback((event: JobResult, nextStatus: JobStatus) => {
-    if (event.job_id && activeJobId && event.job_id !== activeJobId) return;
+    if (!activeJobIdRef.current || event.job_id !== activeJobIdRef.current) return;
     setResult(event);
     setShowResult(true);
     setStatus(nextStatus);
+    activeJobIdRef.current = null;
     setActiveJobId(null);
     if (nextStatus === 'cancelled') {
       setFiles((current) => current.map((file) => (file.status === 'processing' ? { ...file, status: 'cancelled' } : file)));
@@ -308,14 +313,14 @@ export function usePdfToJpgJob(isEngineReady: boolean, defaults: PdfJobDefaults 
     } else {
       addToast('Konversi selesai.', 'success', `${event.total_jpg} JPG dibuat.`);
     }
-  }, [activeJobId, addToast]);
+  }, [addToast]);
 
-  useTauriEvent<JobProgress>('engine://progress', handleProgressEvent, Boolean(activeJobId));
-  useTauriEvent<FileCompletedEvent>('engine://file-completed', handleFileCompletedEvent, Boolean(activeJobId));
-  useTauriEvent<WarningEvent>('engine://warning', handleWarningEvent, Boolean(activeJobId));
-  useTauriEvent<JobResult>('engine://job-completed', (event) => finishJob(event, 'completed'), Boolean(activeJobId));
-  useTauriEvent<JobResult>('engine://job-failed', (event) => finishJob(event, 'failed'), Boolean(activeJobId));
-  useTauriEvent<JobResult>('engine://job-cancelled', (event) => finishJob(event, 'cancelled'), Boolean(activeJobId));
+  useTauriEvent<JobProgress>('engine://progress', handleProgressEvent, true);
+  useTauriEvent<FileCompletedEvent>('engine://file-completed', handleFileCompletedEvent, true);
+  useTauriEvent<WarningEvent>('engine://warning', handleWarningEvent, true);
+  useTauriEvent<JobResult>('engine://job-completed', (event) => finishJob(event, 'completed'), true);
+  useTauriEvent<JobResult>('engine://job-failed', (event) => finishJob(event, 'failed'), true);
+  useTauriEvent<JobResult>('engine://job-cancelled', (event) => finishJob(event, 'cancelled'), true);
 
   return {
     files,

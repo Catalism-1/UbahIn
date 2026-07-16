@@ -9,7 +9,7 @@
 
 .hero {
   background:
-    linear-gradient(135deg, rgba(220, 214, 247, 0.74), rgba(247, 216, 233, 0.7)),
+    linear-gradient(135deg, color-mix(in srgb, var(--lavender) 74%, transparent), color-mix(in srgb, var(--pink) 70%, transparent)),
     var(--surface);
   border: 1px solid var(--border);
   border-radius: 22px;
@@ -153,7 +153,7 @@
 .uploadZone {
   align-items: center;
   background:
-    linear-gradient(135deg, rgba(220, 214, 247, 0.26), rgba(247, 216, 233, 0.36)),
+    linear-gradient(135deg, color-mix(in srgb, var(--lavender) 26%, transparent), color-mix(in srgb, var(--pink) 36%, transparent)),
     var(--surface-2);
   border: 1px dashed var(--accent);
   border-radius: 18px;
@@ -171,7 +171,7 @@
 .uploadZone:hover {
   border-color: var(--accent-hover);
   background:
-    linear-gradient(135deg, rgba(220, 214, 247, 0.36), rgba(247, 216, 233, 0.46)),
+    linear-gradient(135deg, color-mix(in srgb, var(--lavender) 36%, transparent), color-mix(in srgb, var(--pink) 46%, transparent)),
     var(--surface-3);
 }
 
